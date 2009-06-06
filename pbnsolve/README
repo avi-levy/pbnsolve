@@ -1,49 +1,119 @@
-PBNSOLVE VERSION 1.1
+PBNSOLVE VERSION 1.02
 Jan Wolter
 
-This software is open source.  Any use may be made of it so long as the
-author's name and copyright are retained.
+This software is open source, copyrighted by Jan Wolter, but released under
+an Apache 2.0 License.
 
-This software requires libxml2 which seems to be available on most modern
-Unix systems.  It is also available from http://xmlsoft.org/.
+This software usually requires libxml2 which seems to be available on most
+modern Unix systems.  It is also available from http://xmlsoft.org/.
 
-To compile:
+It is possible to build pbnsolve without this by setting a flag in the
+config.h file, but all the supported non-xml input file formats are rather
+pathetic so this will pretty seriously cripple pbnsolve.  People only
+interested in black and white puzzle might be able to get by with that.
+
+Sample puzzles to test on can be obtained at http://webpbn.com/export.cgi
+
+
+To Compile:
+-----------
+
+This program was developed for Unix systems.  It would probably not be
+difficult to port to other operating systems.  Libxml2 is available for
+most operating systems.  The only-unix specific code that comes to mind
+is the resource limitation stuff.  If you do a port, I'd be interested in
+your diffs.
+
+On Unix:
 
    edit config.h
 
-      Might want to change some of the settings here.
+      Might want to change some of the settings here, though likely the
+      ones in the distribution are OK.
 
    edit Makefile
 
-      Mainly to get include paths for libxml2 right.
+      Mainly to get include file paths for libxml2 right and decide between
+      -O2 (for production) and -g (for development).
 
    "make pbnsolve"
 
+      Should compile without warnings.
+
+Usage:
+------
+
 Run syntax is:
 
-   pbnsolve -[cdhlpt] -[v<msgflags>] [-s <n>] <datafile>
+   pbnsolve -[bcdhlpt] -[v<msgflags>] [-n<n>] [-s<n>] [-x<n>]
+   	[-f<fmt>] [<datafile>]
+
+Input files may be in any of several formats, described in the "Input Format"
+section below.  Pbnsolve will try to guess the file format based on the
+filename suffix.  If that doesn't work, it will try to guess it based on
+the content of the file, though it doesn't do that terribly well.
+
+If the <datafile> path is omitted, then it reads from standard input.  In
+this case it will always expect "xml" format.
 
 Command line options:
 
+   -b 
+   	Brief output.  Error messages are as usual, but normal output is just
+	one line containing one or more of the following words separated by
+	spaces:
+
+	   unique        - puzzle had a unique solution.
+	   multiple      - puzzle had multiple solutions.
+	   logical       - puzzle was solvable without guessing.
+	   trivial       - puzzle was too easy, with little or no whitespace.
+	   solvable      - found solution but none of the above was proven.
+	   contradiction - puzzle had no solutions.
+	   timeout       - cpu limit exceeded without a solution.
+	   stalled       - only partially solved puzzle.  Occurs with -l flag.
+
+	Without the -b flag you get wordier output along with ASCII images
+	of one or two puzzle solutions.  You don't get triviality reported
+	in that case, unless you give the -t flag and notice a difficulty
+	rating of 100.
+
+	Note that with the -u or -c flags, we will always get one of
+	'unique' or 'multiple' if we find any solution at all.  If the puzzle
+	can be solved by line and color logic alone, it will be flagged
+	logical, but since other solution techniques are possible, it should
+	not be assumed that other puzzles are not logically solvable in a
+	broader sense.
+
    -c
-        Input puzzle in expected to include a solution grid.  We check to
-	see if that is the unique solution.
+        Input puzzle is expected to include a goal solution grid.  We try
+	to see if we can find a solution different from that one, and if
+	so, report it.  This is sometimes faster than -u, and in the case
+	of multiple solutions always reports back a non-goal solution, but
+	is otherwise similar.
 
    -d  
-        Print a descripition of the puzzle before starting to solve it.
+        Print a descripition of the puzzle data structure before starting
+	to solve it.  This is mainly for debugging the puzzle reading
+	code.  It's not pretty.
 
    -e
         Do not do the extra search for logically solvable cells before
 	making our first guess.  Skipping this check probably improves
 	performance slightly, but also reduces how effectively we flag
-	puzzles as being logically solvable.
+	puzzles as being logically solvable.  Some puzzles solvable by
+	line and color logic alone will not be flagged as 'logical'.
 
-   -h  
-        Run in http mode.  Output is XML-formatted in a way suitable for
-	use in an AJAX-application.
+   -f<fmt>
+        Explicitly set the input file format.  The argument should be
+	on of the "suffixes" listed in the "Input Formats" section below.
+	If this is not given, pbnsolve will first look at the actual
+	suffix of the input filename.  If there is no recognizable suffix,
+	then it will try to guess the format of the file from it's first
+	few bytes.
 
    -l  
         Do logical solving only, no backtracking, probing or guessing.
+	If we can't solve it without searching, return partial solution.
 
    -m
         Merge probes.  Whenever we probe on different possible settings for
@@ -54,17 +124,37 @@ Command line options:
 
    -p  
         Do not do probing.  Instead use heuristics to guess cells.  Implies
-	-m, obviously.
+	-m, obviously.  This reproduces the behavior of an older version
+	of the program, which solved fewer puzzles, but was quicker on many
+	of the ones it did solve.
+
+   -n<n>
+        For file formats, like the XML format, in which the file can contain
+	more than one puzzle, this specifies which puzzle to solve.  The
+	default is 1, which means the first puzzle.
 
    -s<n>
         Start solving from one of the "saved" solutions in the input file.
 	<n> is the number of the input to use, if there is more than one.
+	If the number is omitted it defaults to 1.
+
+   -x<secs>
+        Set a limit on the CPU time used by pbnsolve.  If <secs> is zero
+	or omitted, then there is no CPU limit, otherwise pbnsolve will
+	abruptly terminate if it uses more than that number of CPU seconds.
+	Normally the default is zero (no limit) but it's possible to build
+	pbnsolve with a different default CPU limit.
 
    -t  
         After run is completed, print statistics on run time.
 
    -u
    	Check uniqueness.  Determine if the puzzle has a unique solution.
+
+   -h  
+        Run in http mode.  Output is XML-formatted in a way suitable for
+	use in an AJAX-application.  This doesn't work right with the
+	-t, -v or -b flags.
 
    -v<msgflags>
         Write debugging messages to standard output.  The <msgflags> are
@@ -83,9 +173,195 @@ Command line options:
 	   S - Cell State change messages.
 	   V - Extraverbosity when used with any of the above.
 
-If the program is renamed "pbnsolve.cgi" then it will work as an AJAX
-application.  It ignore command line arguments, take it's input from
-a CGI variable named "image" and run as if -h and -c were set.
+CGI Mode:
+---------
 
-Sample puzzles to test on can be obtained at
-   http://webpbn.com/export.cgi
+If the program is renamed "pbnsolve.cgi" then it will work as an AJAX
+puzzle validator.  It ignores command line arguments and run as if the options
+-hcx1 were set, so it checks if the given goal is unique, returns results in
+xml format, and times out after one second of CPU time is used.  (The actual
+timeout value is configurable at compile time).
+
+A CGI variable named "image" should contain the puzzle description (basically
+the contents of the input file).  The CGI variable "format" may contain the
+one of the suffix strings specified below to indicate the format of the input
+file.  If the format is not given explicitly, a half-hearted attempt will be
+made to guess it from the contents of the file.
+
+In CGI mode, output will be something like this for a puzzle with a unique
+solution:
+
+    Content-type: application/xml
+
+    <data>
+    <status>OK</status>
+    <unique>1</unique>
+    <logic>1</logic>
+    <difficulty>510</difficulty>
+    </data>
+
+or like this for a puzzle with multiple solutions:
+
+    Content-type: application/xml
+
+    <data>
+    <status>OK</status>
+    <unique>0</unique>
+    <alt>
+    X.
+    .X
+    </alt>
+    <difficulty>300</difficulty>
+    </data>
+
+The <status> will be "FAIL:" followed by an error message if the
+solver was for any reason unable to run, or "TIMEOUT" if the solver
+exceeded it's runtime limit, or "OK" otherwise.  <Unique> is 1 if
+the puzzle has only one solution, 0 if otherwise.  If there are
+multiple solutions, it will give one that differs from the goal
+solution in the <alt> tag.  <Logic> is 1 if it was solvable without
+needing to make any guesses.   <Difficulty> is a measure of how hard
+the solver had to work to solve the puzzle.  It's -1 if the puzzle
+was blank, 100 if the puzzle had so little white space that it was
+trivial to solve, and a larger number if it was harder.
+
+Input Formats:
+--------------
+
+Pbnsolve can read several input formats.  Some input formats include only
+the clues, not the goal image, and some include only the goal image but not
+the clues, and some can contain both.  Pbnsolve will construct clues from a
+goal image if the clues are not given.
+
+Note that the -c option (which is always on in CGI mode) requires a goal
+image, so only formats that can include a goal image can be used with that.
+Uniqueness checking on other formats needs to be done with the -u option.
+
+Some formats can include saved solutions.  These are images of incompletely
+solved puzzles which pbnsolve can take as a starting point instead of starting
+with a blank grid.
+
+Recognized formats are listed below:
+
+  PBNSOLVE XML FORMAT
+    Suffix:  "xml"
+    Contains:  clues, goal, saved
+    Color:  any number of colors
+    Documentation: http://webpbn.com/pbn_fmt.html
+
+    This is our native format, but if libxml2 is not available and you built
+    pbnsolve with the NOXML flag, then it isn't available and pbnsolve is
+    crippled because none of the other formats currently available support
+    all of pbnsolve's features.
+
+  STEVE SIMPSON'S .NON FORMAT (EXTENDED)
+    Suffix:  "non"
+    Contains:  clues, goal, saved
+    Color:  black & white only
+    Documentation: http://www.comp.lancs.ac.uk/~ss/nonogram/fmt2
+
+    Pbnsolve is slightly incompatible with the spec in that it will treat a
+    blank line in the clues as a blank clue.  The official way to mark a blank
+    clue is with a '0'.  Pbnsolve accepts those as blank clues too.
+
+    The official format allows arbitrary additional properties to be defined,
+    and we use two of these for goal and saved puzzle images.
+
+    The "goal" keyword is followed by a image of the puzzle goal, row-by-row
+    with 1's for blacks and 0's for whites.  Any other characters (usually
+    whitespace) are ignored.  If prefer human readability to adherence to
+    Simpson's spec, you could enter the grid for a 5x10 puzzle like:
+
+        goal
+	01100
+	01101
+	00101
+	01110
+	10100
+	10100
+	00110
+	01010
+	01011
+	11000
+
+    or you can use the less readable, but more compliant format of:
+
+        goal 01100011010010101110101001010000110010100101111000
+    or 
+        goal "01100011010010101110101001010000110010100101111000"
+
+    Saved grids can be entered in the same way, using the keyword "saved"
+    instead of "goal" and with '?' characters marking cells that are unknown,
+    '0' for white and '1' for black.  There can be multiple saved solutions
+    in a file.  The -s flag can be used to select one to start from.
+
+    These files lack any sort of "magic number" at the beginning, and so
+    pbnsolve is not generally able to identify them by sniffing the file
+    content.
+
+    This is the best option to use if you can't use the xml format, but
+    it doesn't support color puzzles.
+
+  OLSAK .MK FORMAT
+    Suffix:  "mk"
+    Contains:  clues
+    Color:  black & white only
+
+    This is a very simple format.  Here's an example:
+
+	10 5
+	2
+	2 1
+	1 1
+	3
+	1 1
+	1 1
+	2
+	1 1
+	1 2
+	2
+	#
+	2 1
+	2 1 3
+	7
+	1 3
+	2 1
+
+    The first two numbers are height and width.  The next numbers, up to the
+    '#' are row clues.  The rest are column clues.  As in the .non files, a
+    blank clue is indicated by a line with just a zero on it, but pbnsolve
+    will also treat blank lines as blank clues.
+
+    The Olsak's also have a multicolor puzzle format where files take a .g
+    suffix, but pbnsolve does not support that at this time.
+
+  JAKUB WILK'S .NIN FORMAT
+    Suffix:  "non"
+    Contains:  clues
+    Color:  black & white only
+    Documentation: http://jwilk.nfshost.com/software/nonogram.html
+
+    Pretty much the same as the .mk format, except the height and width
+    values are given in the opposite order, and there is no '#' between the
+    row clues and the column clues.
+
+    Pbnsolve cannot "sniff" the format of these files.  If you give it one
+    without specifying the format, it will probably guess that it is an "mk"
+    file and fail miserably.
+
+  NETPBM-STYLE PBM FILES
+    Suffix:  "pbm"
+    Contains:  goal, clues computed by pbnsolve
+    Color:  black & white only
+    Documentation: http://netpbm.sourceforge.net/doc/pbm.html
+
+    This is a 2-color bitmap image format used by the netpbm package, which
+    includes tools to convert just about any other image format (GIF, PNG,
+    JPEG, etc) to this one.  We should probably use libnetpbm to read it,
+    but we don't.  We can take plain or raw files.  The plain files are
+    pretty danged easy to generate from other programs, especially since
+    pbnsolve doesn't care about the 70 characters-per-line limit.
+
+    Some PBM files can contain multiple images.  It would be good if the
+    -n flag could be used to select which one to solve, but this hasn't
+    been implemented.  We always solve the first one.
