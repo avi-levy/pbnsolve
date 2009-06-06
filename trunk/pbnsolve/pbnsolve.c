@@ -26,13 +26,13 @@ char *version= "1.1";
 #endif
 
 int verb[NVERB];
-int maybacktrack= 1, tryharder= 1;
-int mayprobe= 1, mergeprobe= 0;
+int maybacktrack= 1, mayexhaust= 1;
+int mayprobe= 1, mergeprobe= 0, maylinesolve= 1;
 int checkunique= 0;
 int checksolution= 0;
 int http= 0, terse= 0;
 
-int nlines, probes, guesses, backtracks, merges;
+int nlines, probes, guesses, backtracks, merges, exh_runs, exh_cells;
 
 
 void timeout(int sig)
@@ -49,12 +49,57 @@ void timeout(int sig)
     exit(1);
 }
 
+
 void setcpulimit(int secs)
 {
     struct rlimit rlim;
     rlim.rlim_cur= secs;
     signal(SIGXCPU,timeout);
     setrlimit(RLIMIT_CPU, &rlim);
+}
+
+int setalg(char ch)
+{
+    switch (ch)
+    {
+    case 'L':
+	/* LRO Line Solving */
+	maylinesolve= 1;
+    	break;
+    case 'E':
+	/* Exhaustive Checking */
+	mayexhaust= 1;
+    	break;
+    case 'G':
+	/* Guessing */
+	maybacktrack= 1;
+	mayprobe= 0;
+	mergeprobe= 0;
+    	break;
+    case 'P':
+	/* Probing without Merging */
+	maybacktrack= 1;
+	mayprobe= 1;
+	mergeprobe= 0;
+    	break;
+    case 'M':
+	/* Probing with Merging */
+	maybacktrack= 1;
+	mayprobe= 1;
+	mergeprobe= 1;
+    	break;
+    case 0:
+	/* Called to turn everything off */
+	maylinesolve= 0;
+	mayexhaust= 0;
+	maybacktrack= 0;
+	mayprobe= 0;
+	mergeprobe= 0;
+    	break;
+    default:
+    	return 0;
+    }
+    return 1;
 }
 
 #define SN_NONE 0
@@ -73,7 +118,7 @@ int main(int argc, char **argv)
     char *altsoln= NULL, *goal= NULL;
     int pindex= 1;	/* if input file has multiple puzzles, which to do */
     int cpulimit= DEFAULT_CPULIMIT;
-    int i,j, vflag= 0;
+    int i,j, vflag= 0, aflag= 0;
     int startsol= 0;	/* solution to start from, 0 means none */
     int setformat= 0, dump= 0, statistics= 0;
     int fmt, isunique, iscomplete;
@@ -159,6 +204,11 @@ int main(int argc, char **argv)
 		    else
 		    	vflag= 0;
 
+		    if (aflag && setalg(argv[i][j]))
+			continue;
+		    else
+		    	aflag= 0;
+
 		    /* Parse numeric arguments to -n -s or -x */
 		    if (isdigit(argv[i][j]))
 		    {
@@ -189,7 +239,6 @@ int main(int argc, char **argv)
 		    case 'c':
 			checksolution= 1;
 			checkunique= 1;
-			maybacktrack= 1;
 			break;
 		    case 'd':
 			dump= 1;
@@ -200,6 +249,10 @@ int main(int argc, char **argv)
 			break;
 		    case 'v':
 			vflag= 1;
+			break;
+		    case 'a':
+			aflag= 1;
+			setalg(0);
 			break;
 		    case 'n':
 			setnumber= SN_INDEX;
@@ -217,24 +270,7 @@ int main(int argc, char **argv)
 			http= 1;
 			statistics= 0;
 			break;
-		    case 'l':
-			maybacktrack= 0;
-			checkunique= 0;
-			checksolution= 0;
-			break;
-		    case 'p':
-			mayprobe= 0;
-			mergeprobe= 0;
-			break;
-		    case 'm':
-			mergeprobe= 1;
-			break;
 		    case 'u':
-			maybacktrack= 1;
-			checkunique= 1;
-			break;
-		    case 'e':
-			tryharder= 0;
 			checkunique= 1;
 			break;
 		    case 'f':
@@ -275,6 +311,15 @@ int main(int argc, char **argv)
 		goto usage;
 	}
 	if (pindex < 1) pindex= 1;
+
+	/* Uniqueness checking (ie, looking to see if there is another
+	 * solution if the first one we found wasn't logically arrived at)
+	 * is only meaningful if we are backtracking
+	 */
+	if (!maybacktrack) checksolution= checkunique= 0;
+
+	if (!maylinesolve && !mayexhaust)
+		fail("Need -aL or -aE to be able to solve puzzles.\n");
 
 	if (setformat && !format) goto usage;
 	if (format)
@@ -341,7 +386,7 @@ int main(int argc, char **argv)
     	puts("J: INITIAL JOBS:");
 	dump_jobs(stdout,puz);
     }
-    nlines= probes= guesses= backtracks= merges= 0;
+    nlines= probes= guesses= backtracks= merges= exh_runs= exh_cells= 0;
     while (1)
     {
 	rc= solve(puz,sol);
@@ -389,7 +434,8 @@ int main(int argc, char **argv)
 	 * solution and then resume the search to see if we can find a
 	 * differnt one.
 	 */
-	if (VA) puts("A: FOUND ONE SOLUTION - CHECKING FOR OTHERS");
+	if (VA) printf("A: FOUND ONE SOLUTION - CHECKING FOR MORE\n%s",
+	    puz->found);
 	backtrack(puz,sol);
     }
     if (statistics) eclock= clock();
@@ -422,7 +468,7 @@ int main(int argc, char **argv)
     }
     else if (terse)
     {
-	if (!iscomplete)
+	if (!iscomplete && puz->found == NULL)
 	{
 	    puts("stalled");
 	}
@@ -451,7 +497,7 @@ int main(int argc, char **argv)
     }
     else
     {
-	if (!iscomplete)
+	if (!iscomplete && puz->found == NULL)
 	{
 	    /* Found incomplete solution.  Only with -l */
 	    printf("STALLED WITH PARTIAL SOLUTION:\n");
@@ -504,7 +550,10 @@ int main(int argc, char **argv)
 	    totallines+= puz->n[i];
 	printf("Cells Solved: %d of %d\n",puz->nsolved, puz->ncells);
 	printf("Lines in Puzzle: %d\n",totallines);
-	printf("Lines Processed: %d (%d%%)\n",nlines,nlines*100/totallines);
+	printf("Lines Processed: %d (%d%%)\n",nlines,nlines/totallines*100);
+	if (exh_runs > 0 || mayexhaust)
+	    printf("Exhaustive Search: %d cells in %d passes\n",
+	    	exh_cells, exh_runs);
 	if (!mayprobe)
 	    printf("Backtracking: %d guesses, %d backtracks\n",
 	    	guesses,backtracks);
@@ -526,7 +575,7 @@ int main(int argc, char **argv)
     exit(0);
 
 usage:
-    fprintf(stderr,"usage: %s [-cdehlmpuvvv] [-s#] [-n#] [-x#] [<filename>]\n",
+    fprintf(stderr,"usage: %s [-cdehu] [-s#] [-n#] [-x#] [-aLEGPM] [-vABEGJLMPUSV] [<filename>]\n",
     	argv[0]);
     exit(1);
 }

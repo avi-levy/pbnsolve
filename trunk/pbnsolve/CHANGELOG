@@ -1,3 +1,15 @@
+version 1.03 - May 31, 2009
+  - Improved efficiency of try_everything() routine by adding a scratchpad.
+    Also broke it out to a separate file.
+  - Fixed a bug that caused an incomplete solution to be printed although a
+    complete solution had been found with the -u flag.
+  - Command line arguments rearranged, with new -a option to control algorithm
+    choice.
+  - Some rearrangement of code now to make it possible (though not desirable)
+    to run using the exhaustive check instead of the line solver.  This is
+    really mostly to test that the exhaustive check is working correctly.
+  - Ability to read input format of Bosch's LP solver.
+
 version 1.02 - May 26, 2009
   - Ability to read several black & white puzzle puzzle file formats.
   - Ability to read pbm image files as puzzles.

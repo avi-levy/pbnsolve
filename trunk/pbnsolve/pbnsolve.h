@@ -202,11 +202,9 @@ typedef struct {
 #define FF_NIN		3	/* Wilk's NIN file format */
 #define FF_NON		4	/* Simpson's NON file format */
 #define FF_PBM		5	/* netpbm PBM image file */
+#define FF_LP		6	/* Bosch's format for LP solver */
 
-/* Macros */
 
-#define safedup(x) (x ? strdup(x) : NULL)
-#define safefree(x) if (x) free(x)
 
 /* Debug Flags - You can disable any of these completely by just defining them
  * to zero.  Then the optimizer will throw out those error messages and things
@@ -227,15 +225,23 @@ typedef struct {
 #define VCHAR "ABEGJLMPUSV"
 #define NVERB 11
 
+extern int verb[];
+
+/* Macros */
+
+#define safedup(x) (x ? strdup(x) : NULL)
+#define safefree(x) if (x) free(x)
+
+
 /* Global variables */
 
-extern int verb[];
+extern int maylinesolve;
 extern int maybacktrack;
 extern int mayprobe;
 extern int mergeprobe;
 extern int checkunique;
 extern int checksolution;
-extern int tryharder;
+extern int mayexhaust;
 
 /* pbnsolve.c functions */
 
@@ -292,11 +298,16 @@ int next_job(Puzzle *puz, int *k, int *i);
 void add_job(Puzzle *puz, int k, int i);
 void add_jobs(Puzzle *puz, Cell *cell);
 void add_hist(Puzzle *puz, Cell *cell, int branch);
+void add_hist2(Puzzle *puz, Cell *cell, int oldn, bit_type *oldbit, int branch);
 int backtrack(Puzzle *puz, Solution *sol);
 
 /* solve.c functions */
 extern int nlines, guesses, backtracks, probes, merges;
 int solve(Puzzle *puz, Solution *sol);
+
+/* exhaust.c functions */
+extern int exh_runs, exh_cells;
+int try_everything(Puzzle *puz, Solution *sol, int check);
 
 /* http.c functions */
 char *get_query(void);

@@ -161,6 +161,8 @@ int sense_fmt()
     
     if (isdigit(ch)) return FF_MK;
 
+    if (ch == 'n') return FF_LP;
+
     return FF_UNKNOWN;
 }
 
@@ -180,6 +182,7 @@ struct {
 	{"nin", FF_NIN},
 	{"non", FF_NON},
 	{"pbm", FF_PBM},
+	{"lp", FF_LP},
 	{NULL, FF_UNKNOWN}
     };
 
@@ -244,6 +247,10 @@ Puzzle *load_puzzle(int fmt, int index)
 
     case FF_PBM:
     	puz= load_pbm_puzzle();
+	break;
+
+    case FF_LP:
+    	puz= load_lp_puzzle();
 	break;
 
     default:

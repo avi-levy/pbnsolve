@@ -23,3 +23,4 @@ Puzzle *load_mk_puzzle(void);
 Puzzle *load_nin_puzzle(void);
 Puzzle *load_non_puzzle(void);
 Puzzle *load_pbm_puzzle(void);
+Puzzle *load_lp_puzzle(void);

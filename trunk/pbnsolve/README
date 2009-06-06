@@ -1,4 +1,4 @@
-PBNSOLVE VERSION 1.02
+PBNSOLVE VERSION 1.03
 Jan Wolter
 
 This software is open source, copyrighted by Jan Wolter, but released under
@@ -46,7 +46,7 @@ Usage:
 Run syntax is:
 
    pbnsolve -[bcdhlpt] -[v<msgflags>] [-n<n>] [-s<n>] [-x<n>]
-   	[-f<fmt>] [<datafile>]
+   	[-f<fmt>] [-a<algorithm>] [<datafile>]
 
 Input files may be in any of several formats, described in the "Input Format"
 section below.  Pbnsolve will try to guess the file format based on the
@@ -84,6 +84,13 @@ Command line options:
 	not be assumed that other puzzles are not logically solvable in a
 	broader sense.
 
+   -u
+   	Check uniqueness.  If we had to do any searching (that is we actually
+	needed to invoke algorithms G, P or M) then we don't necessarily know
+	that the first solution we find is the only solution to the puzzle.
+	If the -u flag is given, then in such cases we proceed to try to find
+	a second solution.  If none are found, the puzzle is unique.
+
    -c
         Input puzzle is expected to include a goal solution grid.  We try
 	to see if we can find a solution different from that one, and if
@@ -96,12 +103,49 @@ Command line options:
 	to solve it.  This is mainly for debugging the puzzle reading
 	code.  It's not pretty.
 
-   -e
-        Do not do the extra search for logically solvable cells before
-	making our first guess.  Skipping this check probably improves
-	performance slightly, but also reduces how effectively we flag
-	puzzles as being logically solvable.  Some puzzles solvable by
-	line and color logic alone will not be flagged as 'logical'.
+   -a<algflags>
+
+        Use the listed algorithms.  Possible values are listed below.  The
+	order in which the options are given does not determine the order
+	in which they are tried.  Default is -aLEP.
+
+	   L - LRO Line Solving.  This is normally the first thing we try,
+	       examining rows and columns one at a time, comparing the leftmost
+	       possible position of the blocks to their rightmost possible
+	       position and marking all cells that fall in the same block
+	       either way.  Keep doing this until the puzzle is done or it
+	       we stall.
+
+	   E - Exhaustive Check.  After line solving stalls, but before 
+	       trying anything else, double check every cell on the board
+	       to make sure it really can have all of it's listed values.
+	       Doing this this is probably as likely to slow us down as speed
+	       us up, but it ensures that any puzzle solvable by line and color
+	       logic alone will be flagged as 'logical'.
+
+	   G - Guessing.  Start a depth-first search for a solution, using
+	       heuristics to guess colors for cells, continuing forward until
+	       we find either a solution or a contradiction, and then back
+	       tracking to the last guess to try something else.  This was
+	       the default in older versions of pbnsolve.  If this is set,
+	       P and M are unset.
+
+	   P - Probing.  Similar to guessing but instead of using heuristics
+	       to choose a guess, we actually explore the consequences of
+	       each possibility, and choose the one that makes the most
+	       progress for us.  Thus we invest more computation in making
+	       a good choice.  This can slow us down on many relatively easy
+	       puzzles, where the quality of the choice doesn't matter much,
+	       but speeds us up substantially on harder puzzles.  If this is
+	       set, G and M are unset.
+
+           M - Merged Probing.  Similar to probing but whenever we probe on
+	       different possible settings for a cell, we check to see if
+	       all the alternatives set some other cells to the same values.
+	       If they do, set those values.  This was implemented in the
+	       hopes that it would improve performance, but the payoff is
+	       usually less than the overhead, so it seems to be a dud.
+	       Setting this unsets G and P.
 
    -f<fmt>
         Explicitly set the input file format.  The argument should be
@@ -114,19 +158,6 @@ Command line options:
    -l  
         Do logical solving only, no backtracking, probing or guessing.
 	If we can't solve it without searching, return partial solution.
-
-   -m
-        Merge probes.  Whenever we probe on different possible settings for
-	a cell, check to see if all the alternatives set some other cells to
-	the same values.  If they do, set those values.  This was implemented
-	in the hopes that it would improve performance, but the payoff is
-	usually less than the overhead, so it seems to be a dud.
-
-   -p  
-        Do not do probing.  Instead use heuristics to guess cells.  Implies
-	-m, obviously.  This reproduces the behavior of an older version
-	of the program, which solved fewer puzzles, but was quicker on many
-	of the ones it did solve.
 
    -n<n>
         For file formats, like the XML format, in which the file can contain
@@ -147,9 +178,6 @@ Command line options:
 
    -t  
         After run is completed, print statistics on run time.
-
-   -u
-   	Check uniqueness.  Determine if the puzzle has a unique solution.
 
    -h  
         Run in http mode.  Output is XML-formatted in a way suitable for
@@ -348,6 +376,15 @@ Recognized formats are listed below:
     Pbnsolve cannot "sniff" the format of these files.  If you give it one
     without specifying the format, it will probably guess that it is an "mk"
     file and fail miserably.
+
+  ROBERT BOSCH'S LP SOLVER FORMAT
+    Suffix:  "lp"
+    Contains:  clues
+    Color:  black & white only
+    Documentation: http://www.oberlin.edu/math/faculty/bosch/pbn-page.html
+
+    This is a file format with little to recommend it.  Basically a wordier
+    version of "mk" or "nin".  So why'd we bother to support?  Dunno.
 
   NETPBM-STYLE PBM FILES
     Suffix:  "pbm"
