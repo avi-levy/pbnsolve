@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <limits.h>
 
 #include "bitstring.h"
 #include "config.h"
@@ -117,7 +118,6 @@ typedef struct {
 /* History of things set, used for backtracking */
 
 typedef struct hist_list {
-    struct hist_list *prev;
     char branch;	/* Was this a branch point? */
     Cell *cell;		/* The cell that was set */
     short n;		/* Old n value of cell */
@@ -127,6 +127,12 @@ typedef struct hist_list {
      * bitstrings.
      */
 } Hist;
+
+/* Size of a history element */
+#define HISTSIZE(puz) (sizeof(Hist) + puz->colsize - bit_size(1))
+
+/* i-th element of the history array */
+#define HIST(puz,i) (Hist *)(((char *)puz->history)+(i)*HISTSIZE(puz))
 
 /* Probe Merge List - settings that have been made for all probes on the
  * current cell.
@@ -193,6 +199,7 @@ typedef struct {
     Job *job;		/* Pointer to priority queue of jobs */
     int sjob, njob;	/* Allocated and current size of job array */
     Hist *history;	/* Undo history, if any */
+    int nhist,shist;	/* Number of things in history, and size of history */
     char *found;	/* A stringified solution we have found, if any */
 } Puzzle;
 
@@ -325,7 +332,7 @@ char *solution_string(Puzzle *puz, Solution *sol);
 int check_nsolved(Puzzle *puz, Solution *sol);
 
 /* line_lro.c functions */
-void line_prealloc(Puzzle *puz);
+void init_line(Puzzle *puz);
 void dump_lro_solve(Puzzle *puz, Solution *sol, int k, int i, bit_type *col);
 int *left_solve(Puzzle *puz, Solution *sol, int k, int i);
 int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell);

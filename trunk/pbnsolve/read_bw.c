@@ -112,20 +112,6 @@ Puzzle *init_bw_puzzle()
     puz->type= PT_GRID;
     puz->nset= 2;
 
-    /* Various zeros */
-    puz->source= NULL;
-    puz->id= NULL;
-    puz->title= NULL;
-    puz->seriestitle= NULL;
-    puz->author= NULL;
-    puz->copyright= NULL;
-    puz->description= NULL;
-    puz->sol= NULL;
-    puz->job= NULL;
-    puz->sjob= puz->njob= 0;
-    puz->history= NULL;
-    puz->found= NULL;
-
     /* Color table, including just black as 1 and white as 0 */
     puz->ncolor= puz->scolor= 2;
     puz->color= (ColorDef *)malloc(2*sizeof(ColorDef));

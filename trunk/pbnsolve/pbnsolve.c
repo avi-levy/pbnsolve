@@ -360,7 +360,7 @@ int main(int argc, char **argv)
     }
 
     /* preallocate some arrays used by the line solver */
-    line_prealloc(puz);
+    init_line(puz);
 
     if (VA) printf("A: pbnsolve version %s\n", version);
 
@@ -412,7 +412,7 @@ int main(int argc, char **argv)
     {
 	rc= solve(puz,sol);
 	iscomplete= rc && (puz->nsolved == puz->ncells); /* true unless -l */
-	if (!checkunique || !rc || puz->history == NULL || puz->found != NULL)
+	if (!checkunique || !rc || puz->nhist == 0 || puz->found != NULL)
 	{
 	    /* Time to stop searching.  Either
 	     *  (1) we aren't checking for uniqueness
@@ -421,7 +421,7 @@ int main(int argc, char **argv)
 	     *  (4) a previous search found a solution.
 	     * The solution we found is unique if (3) is true and (4) is false.
 	     */
-	    isunique= (iscomplete && puz->history==NULL && puz->found==NULL);
+	    isunique= (iscomplete && puz->nhist==0 && puz->found==NULL);
 
 	    /* If we know the puzzle is not unique, then it is because we
 	     * previously found another solution.  If checksolution is true,
