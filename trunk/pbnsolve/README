@@ -1,0 +1,66 @@
+PBNSOLVE VERSION 1.0
+Jan Wolter
+
+This software is open source.  Any use may be made of it so long as the
+author's name and copyright are retained.
+
+To compile:
+
+   edit config.h
+
+      Might want to change some of the settings here.
+
+   edit Makefile
+
+      Mainly to get include paths for libxml2 right.
+
+   "make pbnsolve"
+
+Run syntax is:
+
+   pbnsolve -[cdhlpt] -[vvv] [-s <n>] <datafile>
+
+Command line options:
+
+   -c
+        Input puzzle in expected to include a solution grid.  We check to
+	see if that is the unique solution.
+
+   -d  
+        Print a descripition of the puzzle before starting to solve it.
+
+   -h  
+        Run in http mode.  Output is XML-formatted in a way suitable for
+	use in an AJAX-application.
+
+   -l  
+        Do logical solving only, no backtracking, probing or guessing.
+
+   -p  
+        Do not do probing.  Instead use heuristics to guess cells.
+
+   -s<n>
+        Start solving from one of the "saved" solutions in the input file.
+	<n> is the number of the input to use, if there is more than one.
+
+   -t  
+        After run is completed, print statistics on run time.
+
+   -u
+   	Check uniqueness.  Determine if the puzzle has a unique solution.
+
+   -v  
+        Run verbose.
+
+   -vv 
+        Run more verbose.
+
+   -vvv
+        Run even more verbose.
+
+If the program is renamed "pbnsolve.cgi" then it will work as an AJAX
+application.  It ignore command line arguments, take it's input from
+a CGI variable named "image" and run as if -h and -c were set.
+
+Sample puzzles to test on can be obtained at
+   http://webpbn.com/export.cgi
