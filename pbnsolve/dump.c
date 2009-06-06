@@ -214,12 +214,12 @@ void dump_jobs(FILE *fp, Puzzle *puz)
 void dump_history(FILE *fp, Puzzle *puz, int full)
 {
     Hist *h;
-    int k;
-    int nhist= 0;
+    int i,k;
     int nbranch= 0;
 
-    for (h= puz->history; h != NULL; h= h->prev)
+    for (i= 0; i < puz->nhist; i++)
     {
+	h= HIST(puz,i);
     	if (full)
 	{
 	    fprintf(fp,"Cell");
@@ -229,8 +229,7 @@ void dump_history(FILE *fp, Puzzle *puz, int full)
 	    dump_bits(fp, puz, h->bit);
 	    fprintf(fp,h->branch ? "' BRANCH\n" : "'\n");
 	}
-	nhist++;
 	if (h->branch) nbranch++;
     }
-    fprintf(fp,"History Length=%d Branches=%d\n",nhist,nbranch);
+    fprintf(fp,"History Length=%d Branches=%d\n",puz->nhist,nbranch);
 }

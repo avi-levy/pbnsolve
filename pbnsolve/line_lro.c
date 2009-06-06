@@ -28,7 +28,7 @@ static bit_type *oldval;
 static int *nbcolor;
 static bit_type *col;
 
-void line_prealloc(Puzzle *puz)
+void init_line(Puzzle *puz)
 {
     int maxnclue= 0, maxdimension= 0;
     int i,k;
@@ -107,12 +107,11 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 
     /* The lpos array contains current position of each block, or more
      * specifically the first cell of each block.  It's terminated by a -1.
-     */
-    lpos[clue->n]= -1;
-
-    /* The cov array contains the index of the left-most cell covered by the
+     *
+     * The cov array contains the index of the left-most cell covered by the
      * block which CANNOT be white.  It is -1 if there is no such cell.
      */
+    lpos[clue->n]= -1;
 
     b= 0;
     state= NEWBLOCK;
@@ -253,7 +252,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 	    /* Precondition: Blocks 0 through b-1 have been legally placed
 	     *    or b = 0.  lpos[b] points points to a position so that all
 	     *    cells of the block can accomodate the block's color.  j
-	     *    is the next of the first cell after the block.  currcolor
+	     *    is the index of the first cell after the block.  currcolor
 	     *    is the color of the current block b.
 	     * Action:  Check if the first cell of the block is a legal
 	     *    color.  If it is the same color as the block, try advancing

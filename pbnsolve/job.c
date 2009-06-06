@@ -265,6 +265,21 @@ void init_jobs(Puzzle *puz, Solution *sol)
     	heapify_jobs(puz,i);
 }
 
+/* ENLARGE_HIST - Expand the history array.  Puzzle history can't be longer
+ * then ncells*(ncolors-1) but we don't want to allocate that much memory if
+ * we can avoid it.  So we don't allocate anything until the first guess.
+ * Then we allocate a history element for each remaining cell, adding 50% if
+ * we are multicolor and never allocating less than 40.  If we run out, we
+ * call this again to further enlarge the array.
+ */
+void enlarge_hist(Puzzle *puz)
+{
+   int inc= puz->ncells - puz->nsolved + 1;
+   if (puz->ncolor > 2) inc*= 1.5;
+   if (inc < 40) inc= 40;
+   puz->shist+= inc;
+   puz->history= (Hist *)realloc(puz->history, HISTSIZE(puz)*puz->shist);
+}
 
 /* Add a cell to the history.  This should be called while the cell still
  * contains it's old values.  Branch is true if this is a branch point, that
@@ -283,16 +298,13 @@ void add_hist2(Puzzle *puz, Cell *cell, int oldn, bit_type *oldbit, int branch)
     int z;
 
     /* We only start keeping a history after the first branch point */
-    if (puz->history == NULL && !branch) return;
+    if (puz->nhist == 0 && !branch) return;
 
-    /* Allocate memory for the new history element, enlarging it enough
-     * to hold bitstrings of the size we need.
-     */
-    h= (Hist *)malloc(sizeof(Hist) + puz->colsize - bit_size(1));
+    /* Make sure we have memory for the new history element */
+    if (puz->nhist >= puz->shist) enlarge_hist(puz);
 
-    /* Add it onto the linked list */
-    h->prev= puz->history;
-    puz->history= h;
+    /* Get the new history element */
+    h= HIST(puz, puz->nhist++);
 
     h->branch= branch;
     h->cell= cell;
@@ -311,11 +323,14 @@ void add_hist2(Puzzle *puz, Cell *cell, int oldn, bit_type *oldbit, int branch)
 int undo(Puzzle *puz, Solution *sol, int leave_branch)
 {
     Hist *h;
+    Clue *clue;
     int z, k, oldn;
     int is_branch;
 
-    while ((h= puz->history) != NULL)
+    while (puz->nhist > 0)
     {
+	h= HIST(puz, puz->nhist-1);
+
 	is_branch= h->branch;
 
 	if (!is_branch || !leave_branch)
@@ -338,9 +353,7 @@ int undo(Puzzle *puz, Solution *sol, int leave_branch)
 		printf(" (%d)\n",h->cell->n);
 	    }
 
-	    /* Remove cell from linked list */
-	    puz->history= h->prev;
-	    free(h);
+	    puz->nhist--;
 	}
 
 	if (is_branch)
@@ -372,7 +385,7 @@ int backtrack(Puzzle *puz, Solution *sol)
     if (VB) print_solution(stdout,puz,sol);
 
     /* This will be the branch point */
-    h= puz->history;
+    h= HIST(puz, puz->nhist-1);
 
     /* Reset any bits previously set */
     for (z= 0; z < puz->colsize; z++)
@@ -402,11 +415,8 @@ int backtrack(Puzzle *puz, Solution *sol)
      * this node.  Otherwise, convert it into a non-branch point.
      * Next time we backtrack we will just delete it.
      */
-    if (h->prev == NULL)
-    {
-        puz->history= NULL;
-	free(h);
-    }
+    if (puz->nhist == 1)
+	puz->nhist= 0;
     else
 	h->branch= 0;
 

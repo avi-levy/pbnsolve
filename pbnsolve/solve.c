@@ -314,7 +314,7 @@ int solve(Puzzle *puz, Solution *sol)
 	    if (mayexhaust)
 	    {
 	    	rc= try_everything(puz,sol,
-			puz->history != NULL || puz->found != NULL);
+			puz->nhist > 0 || puz->found != NULL);
 
 		if (rc > 0)
 		{
