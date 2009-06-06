@@ -1,0 +1,348 @@
+<html>
+<head>
+</head>
+<body>
+<center>
+<h1>The '<tt>pbnsolve</tt>' Paint-by-Number Puzzle Solver</h1>
+<h3><a href="http://unixpapa.com">Jan Wolter</a></h3>
+</center>
+<h2>Introduction</h2>
+<p>
+"Paint-By-Number" is one of many names for a type of graphical logic puzzle
+originating in Japan.  Other common names for these puzzles are Nonograms,
+Griddlers, Hanjie, and Picross.  The puzzles consist of a blank grid with
+numbers along the top and one side.  The numbers tell the sizes of the blocks
+of the foreground color in that row and column.  To solve the puzzle, you must
+reconstruct the image by figuring out how the color blocks must be place in
+each row and column.
+One place to find examples of these puzzles is at my web site,
+<a href="http://webpbn.com/">webpbn.com</a>.
+<p>
+The '<tt>pbnsolve</tt>' program is a tool to automatically solve such puzzles.
+It was written primary to validate puzzles created by users for the webpbn.com
+site.  We solve the puzzle to determine if it has a unique solution and
+sometimes to get a feel for how easy or difficult it is.
+There are many similar programs available on the web.
+<a href="http://www.comp.lancs.ac.uk/~ss/nonogram/">Steve Simpson</a>
+has a nice Javascript solver, and links to
+<a href="http://www.comp.lancs.ac.uk/~ss/nonogram/list-solvers">many others</a>,
+including a good solver by
+<a href="http://www.olsak.net/grid.html#English">Mirek and Petr Ol&#154;&aacute;k</a>.
+The latter came close to doing what I needed for webpbn.com,
+but the fact that the code is all in Czech makes it hard to modify
+for a non-speaker of that language, so I wrote my own.
+<p>
+Note that <tt>pbnsolve</tt> is a distinct program from the "helper" in the
+puzzle solving environment on the webpbn.com site.
+The helper is implemented in Javascript and is not a full solver.
+<tt>Pbnsolve</tt> is used on webpbn.com only in the puzzle creation
+environment to check puzzles.
+<p>
+<h2>Features</h2>
+<ul>
+<li>
+<tt>Pbnsolve</tt> is open source.  I place no restrictions on it's use
+except that my name and copyright should be retained.
+<p>
+<li>
+<tt>Pbnsolve</tt> is written in C for Unix systems.  It requires
+<a href="http://xmlsoft.org/">libxml2</a> (the Gnome XML parser library).
+Since that library is very portable, it is probably possible to
+port <tt>pbnsolve</tt> to things like Windows or MacOS X,
+but I have not done so and don't intend to.
+<p>
+<li>
+<tt>Pbnsolve</tt> is able to solve multi-color puzzles as well as traditional
+black-and-white puzzles.
+<p>
+<li>
+<tt>Pbnsolve</tt> uses a
+<a href="pbn_fmt.html">flexible and general XML format</a> for puzzle input.
+<p>
+<li>
+Input to <tt>pbnsolve</tt> may be given either as a set of clues, or as
+an image of the intended solution.
+In the latter case, it generates a clue set from the image and solves the
+puzzle from those clues.  This can be useful for validating if the given
+solution is unique.
+<p>
+<li>
+There is no upper limit to puzzle sizes or numbers of colors built into
+<tt>pbnsolve</tt>.  However, the code for handling more than 32 colors has
+not been tested and may be buggy.
+<p>
+<li>
+<tt>Pbnsolve</tt> uses only a modest amount of memory, and memory usage
+does not grow substantially no matter how long it runs.
+<p>
+<li>
+<tt>Pbnsolve</tt> was designed to be able to handle "triddler" puzzles
+(hexagontal puzzles with triangular cells), but though there are many stubs
+to support this, it is far from completely implemented.
+<p>
+<li>
+<tt>Pbnsolve</tt> may be run as a CGI program, reading it's arguments from
+CGI arguments and outputing results in XML format, so it can be used as an
+AJAX application.
+</ul>
+
+<h2>Algorithm</h2>
+
+<h3>Line Solver</h3>
+
+A line-solver is an algorithm that given a single row or column, and the solution
+so far of that line, tries to figure out what additional cells can be marked.
+Most humans solve puzzles mostly in this way, by working on one line at a time.
+<p>
+Like the Javascript "helper" program on webpbn.com, and like most every other
+solver anyone else has built, <tt>pbnsolve</tt> is based on a left-right
+overlap algorithm for line solving.  It works like this:
+<p>
+<ol>
+<li>
+Find the left-most solution, with all blocks pushed as far to the left as possible.
+<p>
+<li>
+Find the right-most solution, with all blocks pushed as far to the right as possible.
+<p>
+<li>
+Intersect the two solutions.
+<p>
+<ol>
+<li>
+Any cell that is in the same block in both solutions must be that color.
+<p>
+<li>
+Any cell that is between the same pair of blocks in both solutions, must be
+white.
+<p>
+</ol>
+</ol>
+<p>
+This is fast, but not complete.  It will miss some cells that could be marked.
+<p>
+The trickiest part in coding this is finding the left-most and right-most solutions.
+The code for this in <tt>pbnsolve</tt> is fairly fast, but extremely ugly, with many
+special cases.
+<p>
+Unlike most other solvers, <tt>pbnsolve</tt> handles multicolor puzzles.
+For each cell, it maintains a list of what colors that cell could be.
+(This is a major improvement over the webpbn.com "helper" program which in which
+cells are always either one specific color, or completely unknown.)
+<p>
+The left-right overlap algorithm is extended slightly to handle this case.
+When we intersect the left and right solutions, we do the following:
+<p>
+<blockquote>
+For all blocks
+<blockquote>
+For all cells between position of the left-most cell of the block in the left solution,
+and the right-most cell of the block in the right solution
+<blockquote>
+That cell may be the color of that block.
+</blockquote>
+</blockquote>
+</blockquote>
+If you do this, you typically find that there are some cells that can't be some colors,
+for example if the first clue for a line is a green seven, then the first seven cells in
+the line can't be red.
+<p>
+Steve Simpson has described what appears to be a better line solving algorithm.
+Someday I should figure out if that can be adapted to multi-color puzzles.
+
+<h3>Logical Solving</h3>
+
+The first thing <tt>pbnsolve</tt> tries to do is solve the puzzle logically.
+It creates a job list, which is just a list of lines that we want to run the line solver
+on (this job list is actually implemented as a heap, so that the highest rated job can
+always be quickly found and extracted).
+Initially, it puts every row and column on the job list,
+rating them by some some simple algorithm that doesn't actually make a whole lot of
+difference.
+<p>
+Then it enters a loop where it keeps grabbing a line off the job list,
+and handing it to the line solver.
+Every time the line solver marks a cell,
+the crossing lines are put on the job list (or have their priority bumped up if they are
+already there).
+<p>
+Often, this process will suffice to solve the puzzle.
+If it succeeds, we are assured that there is a unique solution,
+and that it is solvable by mortals humans, since humans are as good or better
+at line solving than the left-right overlap algorithm.
+<p>
+In many cases, however, this will fail to fully solve the puzzle.
+The job list will empty out, with some cells still in an unknown state.
+If <tt>pbnsolve</tt> is run with the <tt>-t</tt> flag, then it will halt
+at that point, with the puzzle incompletely solved.
+
+<h3>Guessing</h3>
+
+When the logical solver stalls, we need to fall back to a search strategy.
+My first cut at this was to implement a straight-forward depth-first search.
+This is still used if <tt>pbnsolve</tt> is run with the <tt>-p</tt> flag.
+<p>
+When the logic solver stalls, the program makes a guess by picking a cell
+and assigning it a color.
+It then restarts the logical solver, this time keeping an undo history of
+all the changes it makes.
+<p>
+One of three things will happen.
+The first possibility is that the logical slover will stall again, with
+the puzzle still incomplete.  If so, we make another guess and proceed
+by starting up the logical solver again.
+<p>
+The second possibility is that the logical solver could hit a contradition.
+This occurs if the line-solver is unable to find any legal solutions for a
+line.  If that happens, we backtrack to the most recent guess, using the
+undo-history to undo everything we did.
+We then invert the guess.   This is not a guess anymore, we know that
+the cell must be some color other than the color we guessed before.
+We can then restart the logical solver and see how far we get.
+<p>
+The third possibility is that the puzzle solves completely.
+Then, of course, we can stop, unless we are trying to determine if the
+solution is unique.  If we are trying to prove uniqueness, we need
+to backtrack just as we did in the previous case.
+If backtracking leads to other solutions, then we know there are
+multiple solutions.
+If it only leads to contraditions, then the first solution we found
+must have been unique.
+<p>
+Choosing good guesses is fairly important to the performance of this
+algorithm.
+Several different guessing algorithms are implemented in <tt>pbnsolve</tt>.
+You choose between them by editing the <tt>config.h</tt> file and recompiling.
+<p>
+This guessing algorithm worked well on most puzzles, but there were some
+puzzles which humans could solve quite well, that the program would just
+run (seemingly) forever on.
+<p>
+Depth-first search gets hopelessly inefficient if the chain of choice points
+gets too long.  If you have to make ten guesses to to get to a solution,
+then the search tree has something like 2<sup>10</sup> branches.
+Exhaustively exploring all that is pretty hopeless.
+<p>
+However on many of the puzzles where this kind of thing was happening, you could
+do much better if you made different guesses.  Some guesses would get you
+much further than others, so fewer guesses would be needed to reach a solution.
+But the guessing heuristics weren't good enough to find these for all puzzles.
+
+<h3>Probing</h3>
+
+By default <tt>pbnsolve</tt> now uses a probing approach.
+Instead of using some simple heurisitic to make a guess when the logical
+solver stalls, we generate a long list of possible guesses, explore each
+one without committing to it, and then finally choose the one that gets
+closest to solving the puzzle.
+<p>
+The way it works is that it chooses every unsolved cell that has two or
+more neighbor cells that are solved (edge cells count as solved),
+and it guesses every color that the cell could be for each cell.
+For each of these candidate guesses, we run the logical solver until it
+stalls.  The rating for that guess is the number of cells that are solved
+as a result.  When we have explored all candidates, we pick the one that
+got us furthest, and choose that.
+<p>
+There are some special cases that come up.
+Sometimes running the logical solver on one of the candidate guesses will
+end up solving the puzzle completely.  In that case, obviously, we can
+abort the probing and run with the solution we found.
+<p>
+Similarly, sometimes one of the candidate guesses will lead to a contradiction.
+This is almost as good.  Again, we abort the probing phase, invert the guess
+that led to the contradiction, and proceed with that.
+<p>
+There are a lot of inefficiencies in this.  It does a lot of computation to
+explore in various directions, and discards all the results of all that work.
+Then it chooses one and repeats the logical solution of that.
+Really kind of stupid, and it's not surprising that many of the puzzles
+that solved quickly with the guessing algorithm, run quite a bit slower
+with the probing approach.
+<p>
+But it's not exponentially slower in those cases.
+In many cases where the guessing approach got lost in an exponential search,
+the probing approach finds better guesses, making the search tree
+substantially shallower, and thus winning an exponential speed improvement.
+
+<h2>Performance</h2>
+
+<tt>Pbnsolve</tt> solves most puzzles in under a second of CPU time on my
+(fairly fast) computer.
+If it doesn't solve a puzzle in seconds, then it is likely to run a very,
+very long time.
+The puzzles this happens on are all puzzles that no human being has been able
+solve logically either.
+Evidentally the depth-first search simply becomes lost in an exponentially
+branching tree.
+<p>
+<tt>Pbnsolve</tt> was tested on every puzzle currently in the webpbn.com
+database.  Of the 1006 published puzzles, which generally meet minimal
+standards of sanity, it was able to solve all but 
+<a href="http://webpbn.com/play.cgi?id=672">puzzle 672</a>.
+This puzzle is not logically solvable by humans either, nor is the 
+Ol&#154;&aacute;k program able to solve it.
+<p>
+The unpublished puzzles on the webpbn.com site represent puzzles that either
+the authors were never happy with, or which were rejected from the site,
+usually for being insolvable by the users.
+Of 106 unpublished puzzles on the site, 15 could not be solved by
+pbnsolve.
+<p>
+All solvers are going to go exponential on some puzzles.
+We know this, thanks to some folks who proved that solving paint-by-number
+puzzles is NP-complete.
+<tt>Pbnsolve</tt> does fairly well, but I think there is still a <em>lot</em>
+of room for improvement.
+
+<h2>Directions for Improvement</h2>
+
+I have an idea for an improvement to the probing algorithm.  Currently probing
+guesses each possible color for a cell, and explores the consequences of each
+by running the line solver until it stalls.  Suppose we remembered the results
+of each of those probes for a cell and compared them, looking for cells that
+were set to the same color on all branches.  If cell B gets set to white no
+matter what color I set cell A to, then cell B must be white.  I don't know
+how much this would end up gaining us, but there are definitely cases where
+this kind of thing can be very powerful.
+<p>
+A better line solver would help, because better line solving means
+less need for guessing, and less guessing means shallower search trees.
+I suspect that this would only give a fairly modest performance improvement
+in most cases, as most of the things that would find are currently caught
+by the special case of a probe leading to a contradiction.
+However more puzzles would be solved by line-solving alone, and thus could
+be automatically identified as being humanly solvable, so doing this
+would make pbnsolve into a better tool for automatic puzzle checking.
+<p>
+I think a bigger performance improvement would come from a better search
+algorithm, perhaps using something like an A* algorithm instead of a
+depth-first search.  Such searches don't explore in only a single direction,
+but instead explore along many branches of the search tree simultaneously.
+The down side is that all the leaves of the tree have to be kept in memory
+simultaneously, so this can eat more memory the longer it runs.
+(The current <tt>pbnsolve</tt> program uses only a modest amount of memory and
+memory consumption doesn't grow much no matter how long it runs.)
+<p>
+An interesting direction to go would be to try to apply more of the
+<a href="http://webpbn.com/solving.cgi">special
+reasoning tricks</a> that humans use in solving more complex puzzles, like
+edge logic.  This would be hard to do, but it would make the program
+into a better tool for assessing how hard the puzzle is for humans to solve.
+<p>
+There are whole classes of other non-traditional search algorithms that
+might work well here.
+Sometimes when a person solves a puzzle, they find that due to a mistake
+they are in a contradictory state.  Sometimes then you can move things around
+to try to fudge the solution back into shape.  Some kind of relaxation
+algorithm that temporarily produces illegal solutions and then
+fudges them back into shape might be interesting.
+
+<h2>Download</h2>
+
+A tar archive of the source code can be downloaded here:
+<blockquote>
+<a href="pbnsolve-1.0.tgz">pbnsolve-1.0.tgz</a>
+</blockquote>
+</body>
+</html>
