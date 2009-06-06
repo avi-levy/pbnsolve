@@ -23,9 +23,10 @@
  * with a brief error message.  If it is not defined, then there is no limit.
  */
 
-#define CPULIMIT 1 /**/
+/* #define CPULIMIT 180 /**/
+#define CPULIMIT 2
 
-/* NICENESS - If NICENESS is defined, we run at deminished CPU priority to
+/* NICENESS - If NICENESS is defined, we run at diminished CPU priority to
  * minimize interference with other applications running on the computer.
  */
 
@@ -36,30 +37,4 @@
  * file before starting.  Mostly useful for debugging CGI.
  */
 
-#define DUMP_FILE "/tmp/pbnsolve.dump"  /**/
-
-
-/* Define VERBOSITY to the number of levels of verbosity to support.  Less
- * verbosity makes the program a smidgeon faster by needing to test the
- * verbose flag less often.
- */
-
-#define VERBOSITY 3
-
-#if VERBOSITY > 0
-#define V1 verbose
-#else
-#define V1 0
-#endif
-
-#if VERBOSITY > 1
-#define V2 verbose > 1
-#else
-#define V2 0
-#endif
-
-#if VERBOSITY > 2
-#define V3 verbose > 2
-#else
-#define V3 0
-#endif
+/* #define DUMP_FILE "/tmp/pbnsolve.dump"  /**/

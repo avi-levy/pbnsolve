@@ -65,6 +65,7 @@ char *query_lookup(char *query, char *var)
 	    else
 	    	v= strdup(v+1);
 	    free(term);
+	    if (end != NULL) *end= '&';
 	    return v;
 	}
 	if (end == NULL) break;

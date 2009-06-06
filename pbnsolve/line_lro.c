@@ -92,7 +92,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 	    }
 
 	    currcolor= clue->color[b];	/* Color of current block */
-	    if (V3) printf("PLACING BLOCK %d COLOR %d LENGTH %d\n",
+	    if (VL) printf("L: PLACING BLOCK %d COLOR %d LENGTH %d\n",
 	    	b,currcolor,clue->length[b]);
 
 	    /* Earliest possible position of block b, after previous blocks,
@@ -108,7 +108,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 		return NULL;
 	    }
 
-	    if (V3) printf("FIRST POS %d\n",pos[b]);
+	    if (VL) printf("L: FIRST POS %d\n",pos[b]);
 
 	    state= PLACEBLOCK; goto next;
 
@@ -130,7 +130,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 
 	    while (!may_be(cell[pos[b]], currcolor))
 	    {
-		if (V3) printf("POS %d BLOCKED\n",pos[b]);
+		if (VL) printf("L: POS %d BLOCKED\n",pos[b]);
 
 		if (multicolor && !may_be(cell[pos[b]], BGCOLOR))
 		{
@@ -139,18 +139,18 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 		     * find a previously placed block that can be advanced to
 		     * cover it, so we backtrack.
 		     */
-		    if (V3) printf("BACKTRACKING ON WRONG COLOR\n",pos[b]);
+		    if (VL) printf("L: BACKTRACKING ON WRONG COLOR\n",pos[b]);
 		    j= pos[b];
 		    while (b > 1 && !may_be(cell[j], clue->color[b-1]))
 			b--;
 		    state= BACKTRACK; goto next;
 		}
 
-		if (V3) printf("SHIFT BLOCK TO %d\n",pos[b]+1);
+		if (VL) printf("L: SHIFT BLOCK TO %d\n",pos[b]+1);
 
 		if (cell[++pos[b]] == NULL)
 		{
-		    if (V3) printf("END OF THE LINE\n");
+		    if (VL) printf("L: END OF THE LINE\n");
 		    free(pos); free(cov);
 		    return NULL;	/* Hit end of line */
 		}
@@ -159,28 +159,28 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 	    /* First cell has found a home, can we place the rest of the block?
 	     * While we are at at, compute cov[b].
 	     */
-	    if (V3) printf("FIRST CELL OF %d PLACED AT %d\n",b,pos[b]);
+	    if (VL) printf("L: FIRST CELL OF %d PLACED AT %d\n",b,pos[b]);
 	    j= pos[b];
 	    cov[b]= (may_be(cell[j], BGCOLOR) ? -1 : j);
 	    for (j++; j - pos[b] < clue->length[b]; j++)
 	    {
-		if (V3) printf("CHECKING CELL AT %d\n",j);
+		if (VL) printf("L: CHECKING CELL AT %d\n",j);
 		if (cell[j] == NULL)
 		{
-		    if (V3) printf("END OF THE LINE\n");
+		    if (VL) printf("L: END OF THE LINE\n");
 		    free(pos); free(cov);
 		    return NULL;	/* Block runs off end of line */
 		}
 
 		if (!may_be(cell[j], currcolor))
 		{
-		    if (V3) printf("FAILED AT %d\n",j);
+		    if (VL) printf("L: FAILED AT %d\n",j);
 		    if (cov[b] == -1)
 		    {
 			/* block doesn't fit here, but it wasn't
 			 * covering anything, so just keep shifting it
 			 */
-			if (V3) printf("SKIP AHEAD\n");
+			if (VL) printf("L: SKIP AHEAD\n");
 			pos[b]= j;
 			state= PLACEBLOCK; goto next;
 		    }
@@ -189,7 +189,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 			/* Block b cannot be placed.  Need to try advancing
 			 * block b-1.
 			 */
-			if (V3) printf("BACKTRACK\n");
+			if (VL) printf("L: BACKTRACK\n");
 			state= BACKTRACK; goto next;
 		    }
 		}
@@ -198,7 +198,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 		if (cov[b] == -1 && !may_be(cell[j], BGCOLOR))
 		    cov[b]= j;
 
-		if (V3) printf("OK AT %d (cov=%d)\n",j, cov[b]);
+		if (VL) printf("L: OK AT %d (cov=%d)\n",j, cov[b]);
 	    }
 
 	    state= FINALSPACE; goto next;
@@ -217,7 +217,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 	     *	  it does.
 	     */
 
-	    if (V3) printf("CHECKING FINAL SPACE\n");
+	    if (VL) printf("L: CHECKING FINAL SPACE\n");
 
 	    if (cell[j] != NULL)
 	    {
@@ -230,7 +230,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 			(currcolor != clue->color[b+1])) ?
 			    clue->color[b+1] : BGCOLOR;
 
-		if (V3) printf(" NEXTCOLOR=%d\n",nextcolor);
+		if (VL) printf("L:  NEXTCOLOR=%d\n",nextcolor);
 
 		while (cell[j] != NULL && !may_be(cell[j], BGCOLOR) &&
 			(nextcolor == BGCOLOR || !may_be(cell[j],nextcolor)))
@@ -240,7 +240,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 		     * cells, and we need to make sure that the cell at the end
 		     * is one we can cover
 		     */
-		    if (V3) printf("NO FINAL SPACE\n");
+		    if (VL) printf("L: NO FINAL SPACE\n");
 		    if (cov[b] == pos[b] ||
 			(multicolor && !may_be(cell[j],currcolor)) )
 		    {
@@ -252,7 +252,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 		    if (cov[b] == -1 && !may_be(cell[j], BGCOLOR))
 			cov[b]= j;
 		    j++;
-		    if (V3) printf("ADVANCING BLOCK (cov=%d)\n",cov[b]);
+		    if (VL) printf("L: ADVANCING BLOCK (cov=%d)\n",cov[b]);
 		}
 	    }
 
@@ -263,7 +263,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 	     */
 	    if (backtracking && cov[b] == -1)
 	    {
-		if (V3) printf("BACKTRACK BLOCK COVERS NOTHING\n",cov[b]);
+		if (VL) printf("L: BACKTRACK BLOCK COVERS NOTHING\n",cov[b]);
 		backtracking= 0;
 		state= ADVANCEBLOCK; goto next;
 	    }
@@ -291,21 +291,21 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 
 	    if (cell[j] != NULL)
 	    {
-		if (V3) printf("PLACED LAST BLOCK - CHECK REST OF LINE\n");
+		if (VL) printf("L: PLACED LAST BLOCK - CHECK REST OF LINE\n");
 
 		for (; cell[j] != NULL; j++)
 		{
-		    if (V3) printf("CELL %d ",j);
+		    if (VL) printf("L: CELL %d ",j);
 		    if (!may_be(cell[j], BGCOLOR))
 		    {
 			/* Check if we can cover the uncovered square by sliding
 			 * the last block right far enough to cover it
 			 */
-			if (V3) printf("NEEDS COVERAGE\n");
+			if (VL) printf("NEEDS COVERAGE\n");
 			j= pos[b] + clue->length[b];
 			state= ADVANCEBLOCK; goto next;
 		    }
-		    else if (V3)
+		    else if (VL)
 			printf("OK\n");
 		}
 	    }
@@ -323,7 +323,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 
 	    if (--b < 0)
 	    {
-		if (V3) printf("NO BLOCKS LEFT TO BACKTRACK TO - FAIL\n");
+		if (VL) printf("L: NO BLOCKS LEFT TO BACKTRACK TO - FAIL\n");
 		free(pos); free(cov);
 		return NULL;
 	    }
@@ -331,7 +331,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 	    j= pos[b] + clue->length[b];/* First cell after end of block */
 	    currcolor= clue->color[b];	/* Color of current block */
 
-	    if (V3) printf("BACKTRACKING: ");
+	    if (VL) printf("L: BACKTRACKING: ");
 
 	    state= ADVANCEBLOCK; goto next;
 
@@ -345,17 +345,18 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 	     *   anything that block b previously covered.
 	     */
 
-	    if (V3) printf("ADVANCE BLOCK %d (j=%d,cc=%d,pos=%d,cov=%d)\n",
+	    if (VL)
+		printf("L: ADVANCE BLOCK %d (j=%d,cc=%d,pos=%d,cov=%d)\n",
 		    b,j,currcolor,pos[b],cov[b]);
 
 	    while(cov[b] < 0 || pos[b] < cov[b])
 	    {
 		if (!may_be(cell[j], currcolor))
 		{
-		    if (V3) printf("ADVANCE HIT OBSTACLE ");
+		    if (VL) printf("L: ADVANCE HIT OBSTACLE ");
 		    if (cov[b] > 0 || (multicolor && !may_be(cell[j], BGCOLOR)))
 		    {
-			if (V3) printf("- BACKTRACKING\n");
+			if (VL) printf("- BACKTRACKING\n");
 			state= BACKTRACK; goto next;
 		    }
 		    else
@@ -364,7 +365,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 			 * covering anything either, so jump past the obstacle.
 			 */
 			pos[b]= j+1;
-			if (V3) printf("- JUMPING pos=%d\n",pos[b]);
+			if (VL) printf("- JUMPING pos=%d\n",pos[b]);
 			backtracking= 1;
 			state= PLACEBLOCK; goto next;
 		    }
@@ -372,7 +373,7 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 
 		/* Can advance.  Do it */
 		pos[b]++;
-		if (V3) printf("- ADVANCING BLOCK %d TO %d\n",b,pos[b]);
+		if (VL) printf("- ADVANCING BLOCK %d TO %d\n",b,pos[b]);
 
 		/* Check if we have covered anything.  If we have, we can
 		 * stop advancing
@@ -380,14 +381,14 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 		if (!may_be(cell[j++], BGCOLOR))
 		{
 		    if (cov[b] == -1) cov[b]= j-1;
-		    if (V3)
-			printf("COVERED NEW TARGET AT %d - BLOCK AT %d\n",
+		    if (VL)
+			printf("L: COVERED NEW TARGET AT %d - BLOCK AT %d\n",
 			    j-1, pos[b]);
 		    state= FINALSPACE; goto next;
 		}
 		if (cell[j] == NULL)
 		{
-		    if (V3) printf("END OF LINE\n");
+		    if (VL) printf("L: END OF LINE\n");
 		    free(pos); free(cov);
 		    return NULL;
 		}
@@ -397,14 +398,14 @@ int *left_solve(Puzzle *puz, Solution *sol, int k, int i)
 	     * as we can, but we haven't succeeded in covering anything new.
 	     * So backtrack further.
 	     */
-	    if (V3) printf("CAN'T ADVANCE\n");
+	    if (VL) printf("L: CAN'T ADVANCE\n");
 	    state= BACKTRACK;
 	    goto next;
 	}
 	next:;
     }
 
-    if (V3) printf("DONE\n");
+    if (VL) printf("L: DONE\n");
     free(cov);
     return pos;
 }
@@ -473,7 +474,7 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 	    }
 
 	    currcolor= clue->color[b];	/* Color of current block */
-	    if (V3) printf("PLACING BLOCK %d COLOR %d LENGTH %d\n",
+	    if (VL) printf("L: PLACING BLOCK %d COLOR %d LENGTH %d\n",
 	    	b,currcolor,clue->length[b]);
 
 	    /* Earliest possible position of block b, after previous blocks,
@@ -489,7 +490,7 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 		return NULL;
 	    }
 
-	    if (V3) printf("FIRST POS %d\n",pos[b]);
+	    if (VL) printf("L: FIRST POS %d\n",pos[b]);
 
 	    state= PLACEBLOCK; goto next;
 
@@ -511,7 +512,7 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 
 	    while (!may_be(cell[pos[b]], currcolor))
 	    {
-		if (V3) printf("POS %d BLOCKED\n",pos[b]);
+		if (VL) printf("L: POS %d BLOCKED\n",pos[b]);
 
 		if (multicolor && !may_be(cell[pos[b]], BGCOLOR))
 		{
@@ -520,18 +521,18 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 		     * find a previously placed block that can be advanced to
 		     * cover it, so we backtrack.
 		     */
-		    if (V3) printf("BACKTRACKING ON WRONG COLOR\n",pos[b]);
+		    if (VL) printf("L: BACKTRACKING ON WRONG COLOR\n",pos[b]);
 		    j= pos[b];
 		    while (b < maxblock-1 && !may_be(cell[j], clue->color[b+1]))
 			b++;
 		    state= BACKTRACK; goto next;
 		}
 
-		if (V3) printf("SHIFT BLOCK TO %d\n",pos[b]-1);
+		if (VL) printf("L: SHIFT BLOCK TO %d\n",pos[b]-1);
 
 		if (--pos[b] < 0)
 		{
-		    if (V3) printf("END OF THE LINE\n");
+		    if (VL) printf("L: END OF THE LINE\n");
 		    free(pos); free(cov);
 		    return NULL;	/* Hit end of line */
 		}
@@ -540,28 +541,28 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 	    /* First cell has found a home, can we place the rest of the block?
 	     * While we are at at, compute cov[b].
 	     */
-	    if (V3) printf("FIRST CELL OF %d PLACED AT %d\n",b,pos[b]);
+	    if (VL) printf("L: FIRST CELL OF %d PLACED AT %d\n",b,pos[b]);
 	    j= pos[b];
 	    cov[b]= (may_be(cell[j], BGCOLOR) ? -1 : j);
 	    for (j--; pos[b] - j < clue->length[b]; j--)
 	    {
-		if (V3) printf("CHECKING CELL AT %d\n",j);
+		if (VL) printf("L: CHECKING CELL AT %d\n",j);
 		if (j < 0)
 		{
-		    if (V3) printf("END OF THE LINE\n");
+		    if (VL) printf("L: END OF THE LINE\n");
 		    free(pos); free(cov);
 		    return NULL;	/* Block runs off end of line */
 		}
 
 		if (!may_be(cell[j], currcolor))
 		{
-		    if (V3) printf("FAILED AT %d\n",j);
+		    if (VL) printf("L: FAILED AT %d\n",j);
 		    if (cov[b] == -1)
 		    {
 			/* block doesn't fit here, but it wasn't
 			 * covering anything, so just keep shifting it
 			 */
-			if (V3) printf("SKIP AHEAD\n");
+			if (VL) printf("L: SKIP AHEAD\n");
 			pos[b]= j;
 			state= PLACEBLOCK; goto next;
 		    }
@@ -570,7 +571,7 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 			/* Block b cannot be placed.  Need to try advancing
 			 * block b+1.
 			 */
-			if (V3) printf("BACKTRACK\n");
+			if (VL) printf("L: BACKTRACK\n");
 			state= BACKTRACK; goto next;
 		    }
 		}
@@ -579,7 +580,7 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 		if (cov[b] == -1 && !may_be(cell[j], BGCOLOR))
 		    cov[b]= j;
 
-		if (V3) printf("OK AT %d (cov=%d)\n",j, cov[b]);
+		if (VL) printf("L: OK AT %d (cov=%d)\n",j, cov[b]);
 	    }
 
 	    state= FINALSPACE; goto next;
@@ -598,7 +599,7 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 	     *	  it does.
 	     */
 
-	    if (V3) printf("CHECKING FINAL SPACE\n");
+	    if (VL) printf("L: CHECKING FINAL SPACE\n");
 
 	    if (j >= 0)
 	    {
@@ -611,7 +612,7 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 			(currcolor != clue->color[b-1])) ?
 			    clue->color[b-1] : BGCOLOR;
 
-		if (V3) printf(" NEXTCOLOR=%d\n",nextcolor);
+		if (VL) printf("L:  NEXTCOLOR=%d\n",nextcolor);
 
 		while (j >= 0 && !may_be(cell[j], BGCOLOR) &&
 			(nextcolor == BGCOLOR || !may_be(cell[j],nextcolor)))
@@ -621,7 +622,7 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 		     * cells, and we need to make sure that the cell at the end
 		     * is one we can cover
 		     */
-		    if (V3) printf("NO FINAL SPACE\n");
+		    if (VL) printf("L: NO FINAL SPACE\n");
 		    if (cov[b] == pos[b] ||
 			(multicolor && !may_be(cell[j],currcolor)) )
 		    {
@@ -633,7 +634,7 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 		    if (cov[b] == -1 && !may_be(cell[j], BGCOLOR))
 			cov[b]= j;
 		    j--;
-		    if (V3) printf("ADVANCING BLOCK (cov=%d)\n",cov[b]);
+		    if (VL) printf("L: ADVANCING BLOCK (cov=%d)\n",cov[b]);
 		}
 	    }
 
@@ -644,7 +645,8 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 	     */
 	    if (backtracking && cov[b] == -1)
 	    {
-		if (V3) printf("BACKTRACK BLOCK COVERS NOTHING\n",cov[b]);
+		if (VL)
+		    printf("L: BACKTRACK BLOCK COVERS NOTHING\n",cov[b]);
 		backtracking= 0;
 		state= ADVANCEBLOCK; goto next;
 	    }
@@ -672,22 +674,22 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 
 	    if (j >= 0)
 	    {
-		if (V3) printf("PLACED LAST BLOCK - CHECK REST OF LINE\n");
+		if (VL) printf("L: PLACED LAST BLOCK - CHECK REST OF LINE\n");
 
 		for (; j >= 0; j--)
 		{
-		    if (V3) printf("CELL %d ",j);
+		    if (VL) printf("L: CELL %d ",j);
 		    if (!may_be(cell[j], BGCOLOR))
 		    {
 			/* Check if we can cover the uncovered square by sliding
 			 * the last block right far enough to cover it
 			 */
-			if (V3)
+			if (VL)
 			    printf("NEEDS COVERAGE (cov=%d j=%d) ",cov[b],j);
 			j= pos[b] - clue->length[b];
 			state= ADVANCEBLOCK; goto next;
 		    }
-		    else if (V3)
+		    else if (VL)
 			printf("OK\n");
 		}
 	    }
@@ -705,7 +707,7 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 
 	    if (++b > maxblock)
 	    {
-		if (V3) printf("NO BLOCKS LEFT TO BACKTRACK TO - FAIL\n");
+		if (VL) printf("L: NO BLOCKS LEFT TO BACKTRACK TO - FAIL\n");
 		free(pos); free(cov);
 		return NULL;
 	    }
@@ -713,7 +715,7 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 	    j= pos[b] - clue->length[b];/* First cell before start of block */
 	    currcolor= clue->color[b];	/* Color of current block */
 
-	    if (V3) printf("BACKTRACKING: ");
+	    if (VL) printf("L: BACKTRACKING: ");
 
 	    state= ADVANCEBLOCK; goto next;
 
@@ -727,17 +729,17 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 	     *   anything that block b previously covered.
 	     */
 
-	    if (V3) printf("ADVANCE BLOCK %d (j=%d,cc=%d,pos=%d,cov=%d)\n",
+	    if (VL) printf("L: ADVANCE BLOCK %d (j=%d,cc=%d,pos=%d,cov=%d)\n",
 		    b,j,currcolor,pos[b],cov[b]);
 
 	    while(cov[b] < 0 || pos[b] > cov[b])
 	    {
 		if (!may_be(cell[j], currcolor))
 		{
-		    if (V3) printf("ADVANCE HIT OBSTACLE ");
+		    if (VL) printf("L: ADVANCE HIT OBSTACLE ");
 		    if (cov[b] > 0 || (multicolor && !may_be(cell[j], BGCOLOR)))
 		    {
-			if (V3) printf("- BACKTRACKING\n");
+			if (VL) printf("- BACKTRACKING\n");
 			state= BACKTRACK; goto next;
 		    }
 		    else
@@ -746,7 +748,7 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 			 * covering anything either, so jump past the obstacle.
 			 */
 			pos[b]= j-1;
-			if (V3) printf("- JUMPING pos=%d\n",pos[b]);
+			if (VL) printf("- JUMPING pos=%d\n",pos[b]);
 			backtracking= 1;
 			state= PLACEBLOCK; goto next;
 		    }
@@ -754,7 +756,7 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 
 		/* Can advance.  Do it */
 		pos[b]--;
-		if (V3) printf("- ADVANCING BLOCK %d TO %d\n",b,pos[b]);
+		if (VL) printf("- ADVANCING BLOCK %d TO %d\n",b,pos[b]);
 
 		/* Check if we have covered anything.  If we have, we can
 		 * stop advancing
@@ -762,14 +764,14 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 		if (!may_be(cell[j--], BGCOLOR))
 		{
 		    if (cov[b] == -1) cov[b]= j+1;
-		    if (V3)
-		    	printf("COVERED NEW TARGET AT %d - BLOCK AT %d\n",
+		    if (VL)
+		    	printf("L: COVERED NEW TARGET AT %d - BLOCK AT %d\n",
 				j+1, pos[b]);
 		    state= FINALSPACE; goto next;
 		}
 		if (j < 0)
 		{
-		    if (V3) printf("END OF LINE\n");
+		    if (VL) printf("L: END OF LINE\n");
 		    free(pos); free(cov);
 		    return NULL;
 		}
@@ -779,14 +781,14 @@ int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
 	     * as we can, but we haven't succeeded in covering anything new.
 	     * So backtrack further.
 	     */
-	    if (V3) printf("CAN'T ADVANCE\n");
+	    if (VL) printf("L: CAN'T ADVANCE\n");
 	    state= BACKTRACK;
 	    goto next;
 	}
 	next:;
     }
 
-    if (V3) printf("DONE\n");
+    if (VL) printf("L: DONE\n");
     free(cov);
     return pos;
 }
@@ -823,24 +825,24 @@ bit_type *lro_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
     /* Count the number of cells in the line */
     if (ncell <= 0) ncell= count_cells(puz, sol, k, i);
 
-    if (V3) printf("-----------------LEFT------------------\n");
+    if (VL) printf("-----------------LEFT------------------\n");
     left= left_solve(puz, sol, k, i);
     if (left == NULL) return NULL;
 
-    if (V3) printf("-----------------RIGHT-----------------\n");
+    if (VL) printf("-----------------RIGHT-----------------\n");
     right= right_solve(puz, sol, k, i, ncell);
     if (right == NULL)
     	fail("Left solution but no right solution for line %d direction %d\n",
 		i, k);
 
-    if (V3)
+    if (VL)
     {
 	int i;
 
-	printf("LEFT SOLUTION:\n");
+	printf("L: LEFT SOLUTION:\n");
 	for (i= 0; left[i] >= 0; i++)
 	    printf("Block %d at %d\n",i, left[i]);
-	printf("RIGHT SOLUTION:\n");
+	printf("L: RIGHT SOLUTION:\n");
 	for (i= 0; right[i] >= 0; i++)
 	       printf("Block %d at %d\n",i, right[i]);
     }
@@ -902,9 +904,9 @@ bit_type *lro_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell)
     free(left);
     free(right);
 
-    if (V3)
+    if (VL)
     {
-	printf("SOLUTION TO LINE %d DIRECTION %d\n",i,k);
+	printf("L: SOLUTION TO LINE %d DIRECTION %d\n",i,k);
 	dump_lro_solve(puz, sol, k, i, col);
     }
 
@@ -930,26 +932,25 @@ int apply_lro(Puzzle *puz, Solution *sol, int k, int i)
 
     if (col == NULL) return 0;
 
-    if (V3) printf("UPDATING GRID\n");
+    if (VL) printf("L: UPDATING GRID\n");
 
     for (j= 0; j < ncell; j++)
     {
-	if (V3) printf("CELL %d",j);
-
 	/* Is the new value different from the old value? */
 	for (z= 0; z < scol; z++)
 	{
-	    if (V3) printf(" - BYTE %d",z);
-
 	    new= (colbit(j)[z] & cell[j]->bit[z]);
 	    if (cell[j]->bit[z] != new)
 	    {
-		if (V1)
+		/* Do probe merging (maybe) */
+		merge_set(puz, cell[j], colbit(j));
+
+		if (VS)
 		{
-		    if (V3)
-			printf(" - CHANGED FROM (");
+		    if (VL)
+			printf("L: CELL %d - BYTE %d - CHANGED FROM (",j,z);
 		    else
-			printf("CELL %d CHANGED FROM (", j);
+			printf("S: CELL %d CHANGED FROM (", j);
 		    dump_bits(stdout, puz, cell[j]->bit);
 		}
 
@@ -961,14 +962,14 @@ int apply_lro(Puzzle *puz, Solution *sol, int k, int i)
 		for (z++; z < scol; z++)
 		    cell[j]->bit[z]&= colbit(j)[z];
 
-		if (V1)
+		if (VS)
 		{
 		    printf(") TO (");
 		    dump_bits(stdout, puz, cell[j]->bit);
 		    printf(")\n");
 		}
 
-		if (V2) dump_history(stdout, puz, 0);
+		if (VL) dump_history(stdout, puz, 0);
 
 		if (puz->ncolor <= 2)
 		    cell[j]->n= 1;
@@ -983,8 +984,9 @@ int apply_lro(Puzzle *puz, Solution *sol, int k, int i)
 			add_job(puz, d, cell[j]->line[d]);
 		break;
 	    }
+	    else
+		if (VL) printf("L: CELL %d - BYTE %d\n",j,z);
 	}
-	if (V3) putchar('\n');
     }
 
     free(col);

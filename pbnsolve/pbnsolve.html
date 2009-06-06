@@ -72,10 +72,18 @@ There is no upper limit to puzzle sizes or numbers of colors built into
 not been tested and may be buggy.
 <p>
 <li>
+<tt>Pbnsolve</tt> uses only a modest amount of memory, and memory usage
+does not grow substantially no matter how long it runs.
+<p>
+<li>
 <tt>Pbnsolve</tt> was designed to be able to handle "triddler" puzzles
-(hexagontal puzzles with triangular cell), but though there are many stubs
+(hexagontal puzzles with triangular cells), but though there are many stubs
 to support this, it is far from completely implemented.
 <p>
+<li>
+<tt>Pbnsolve</tt> may be run as a CGI program, reading it's arguments from
+CGI arguments and outputing results in XML format, so it can be used as an
+AJAX application.
 </ul>
 
 <h2>Algorithm</h2>
@@ -127,10 +135,10 @@ When we intersect the left and right solutions, we do the following:
 <p>
 <blockquote>
 For all blocks
-<blockqute>
+<blockquote>
 For all cells between position of the left-most cell of the block in the left solution,
 and the right-most cell of the block in the right solution
-<blockqute>
+<blockquote>
 That cell may be the color of that block.
 </blockquote>
 </blockquote>
@@ -161,7 +169,7 @@ already there).
 Often, this process will suffice to solve the puzzle.
 If it succeeds, we are assured that there is a unique solution,
 and that it is solvable by mortals humans, since humans are as good or better
-at line solving that the left-right overlap algorithm.
+at line solving than the left-right overlap algorithm.
 <p>
 In many cases, however, this will fail to fully solve the puzzle.
 The job list will empty out, with some cells still in an unknown state.
@@ -215,7 +223,7 @@ gets too long.  If you have to make ten guesses to to get to a solution,
 then the search tree has something like 2<sup>10</sup> branches.
 Exhaustively exploring all that is pretty hopeless.
 <p>
-However on many of the where this kind of thing was happening, you could
+However on many of the puzzles where this kind of thing was happening, you could
 do much better if you made different guesses.  Some guesses would get you
 much further than others, so fewer guesses would be needed to reach a solution.
 But the guessing heuristics weren't good enough to find these for all puzzles.
@@ -231,7 +239,7 @@ closest to solving the puzzle.
 The way it works is that it chooses every unsolved cell that has two or
 more neighbor cells that are solved (edge cells count as solved),
 and it guesses every color that the cell could be for each cell.
-For each of these candidate guesses, we run to logical solver until it
+For each of these candidate guesses, we run the logical solver until it
 stalls.  The rating for that guess is the number of cells that are solved
 as a result.  When we have explored all candidates, we pick the one that
 got us furthest, and choose that.
@@ -268,44 +276,58 @@ solve logically either.
 Evidentally the depth-first search simply becomes lost in an exponentially
 branching tree.
 <p>
-<tt>Pbnsolve</tt> has been tested on every puzzle currently in the webpbn.com
+<tt>Pbnsolve</tt> was tested on every puzzle currently in the webpbn.com
 database.  Of the 1006 published puzzles, which generally meet minimal
 standards of sanity, it was able to solve all but 
 <a href="http://webpbn.com/play.cgi?id=672">puzzle 672</a>.
 This puzzle is not logically solvable by humans either, nor is the 
-Ol&#154; program able to solve it.
+Ol&#154;&aacute;k program able to solve it.
 <p>
 The unpublished puzzles on the webpbn.com site represent puzzles that either
 the authors were never happy with, or which were rejected from the site,
 usually for being insolvable by the users.
 Of 106 unpublished puzzles on the site, 15 could not be solved by
+pbnsolve.
 <p>
 All solvers are going to go exponential on some puzzles.
 We know this, thanks to some folks who proved that solving paint-by-number
-puzzles in NP-complete.
+puzzles is NP-complete.
 <tt>Pbnsolve</tt> does fairly well, but I think there is still a <em>lot</em>
 of room for improvement.
 
 <h2>Directions for Improvement</h2>
 
+I have an idea for an improvement to the probing algorithm.  Currently probing
+guesses each possible color for a cell, and explores the consequences of each
+by running the line solver until it stalls.  Suppose we remembered the results
+of each of those probes for a cell and compared them, looking for cells that
+were set to the same color on all branches.  If cell B gets set to white no
+matter what color I set cell A to, then cell B must be white.  I don't know
+how much this would end up gaining us, but there are definitely cases where
+this kind of thing can be very powerful.
+<p>
 A better line solver would help, because better line solving means
 less need for guessing, and less guessing means shallower search trees.
 I suspect that this would only give a fairly modest performance improvement
 in most cases, as most of the things that would find are currently caught
 by the special case of a probe leading to a contradiction.
+However more puzzles would be solved by line-solving alone, and thus could
+be automatically identified as being humanly solvable, so doing this
+would make pbnsolve into a better tool for automatic puzzle checking.
 <p>
-I think a bigger improvement would come from a better search algorithm,
-perhaps using something like an A* algorithm instead of a depth-first
-search.  Such searches don't explore in only a single direction, but
-instead explore along many branches of the search tree simultaneously.
+I think a bigger performance improvement would come from a better search
+algorithm, perhaps using something like an A* algorithm instead of a
+depth-first search.  Such searches don't explore in only a single direction,
+but instead explore along many branches of the search tree simultaneously.
 The down side is that all the leaves of the tree have to be kept in memory
 simultaneously, so this can eat more memory the longer it runs.
 (The current <tt>pbnsolve</tt> program uses only a modest amount of memory and
 memory consumption doesn't grow much no matter how long it runs.)
 <p>
-An interesting direction to go would be to try to apply more of the special
-reasoning tricks that humans use in solving more complex puzzles, like
-boundary logic.  This would be hard to do, but it would make the program
+An interesting direction to go would be to try to apply more of the
+<a href="http://webpbn.com/solving.cgi">special
+reasoning tricks</a> that humans use in solving more complex puzzles, like
+edge logic.  This would be hard to do, but it would make the program
 into a better tool for assessing how hard the puzzle is for humans to solve.
 <p>
 There are whole classes of other non-traditional search algorithms that
@@ -313,7 +335,7 @@ might work well here.
 Sometimes when a person solves a puzzle, they find that due to a mistake
 they are in a contradictory state.  Sometimes then you can move things around
 to try to fudge the solution back into shape.  Some kind of relaxation
-algorithm that temporarily produces illegal solutions and then works them
+algorithm that temporarily produces illegal solutions and then
 fudges them back into shape might be interesting.
 
 <h2>Download</h2>

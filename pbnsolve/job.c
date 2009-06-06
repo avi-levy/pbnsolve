@@ -96,7 +96,7 @@ void add_job(Puzzle *puz, int k, int i)
     /* Check if it is already on the job list */
     if ((j= puz->clue[k][i].jobindex) >= 0)
     {
-	if (V3) printf(" JOB ON %s %d ALREADY ON JOBLIST\n",
+	if (VJ) printf(" J: JOB ON %s %d ALREADY ON JOBLIST\n",
 		CLUENAME(puz->type,k),i);
 
 	/* Increase the priority of the job, bubbling it up the heap if
@@ -118,7 +118,7 @@ void add_job(Puzzle *puz, int k, int i)
     priority= abs(puz->n[k]/2 - i);
 
 
-    if (V3) printf(" JOB ON %s %d ADDED TO JOBLIST\n",
+    if (VJ) printf(" J: JOB ON %s %d ADDED TO JOBLIST\n",
 		CLUENAME(puz->type,k),i);
 
     /* Bubble things down until we find the spot to insert the new key */
@@ -138,6 +138,13 @@ void add_job(Puzzle *puz, int k, int i)
 }
 
 
+/* Add jobs for all lines that cross the given cell */
+void add_jobs(Puzzle *puz, Cell *cell)
+{
+    int k;
+    for (k= 0; k < puz->nset; k++)
+            add_job(puz, k, cell->line[k]);
+}
 
 
 /* Get the next job off the job list (removing it from the list).
@@ -278,9 +285,9 @@ int undo(Puzzle *puz, Solution *sol, int leave_branch)
 	    for (z= 0; z < nc; z++)
 	    	h->cell->bit[z]= h->bit[z];
 
-	    if (V3)
+	    if (VU)
 	    {
-	    	printf("UNDOING CELL ");
+	    	printf("U: UNDOING CELL ");
 		for (k= 0; k < puz->nset; k++)
 		    printf(" %d",h->cell->line[k]);
 		printf(" TO ");
@@ -311,12 +318,12 @@ int backtrack(Puzzle *puz, Solution *sol)
     int nc= bit_size(puz->ncolor);
     int z, k, oldn;
 
-    if (V1) printf("BACKTRACKING TO LAST GUESS\n");
+    if (VB) printf("B: BACKTRACKING TO LAST GUESS\n");
 
     /* Undo up to, but not including, the most recent branch point */
     if (undo(puz,sol, 1))
     {
-	if (V1) printf("CANNOT BACKTRACK\n");
+	if (VB) printf("B: CANNOT BACKTRACK\n");
 	return 1;
     }
 
@@ -335,9 +342,9 @@ int backtrack(Puzzle *puz, Solution *sol)
 	count_cell(puz,h->cell);
     if (oldn == 1 && h->cell->n > 1) puz->nsolved--;
 
-    if (V2)
+    if (VB)
     {
-	printf("INVERTING BRANCH CELL ");
+	printf("B: INVERTING BRANCH CELL ");
 	for (k= 0; k < puz->nset; k++)
 	    printf(" %d",h->cell->line[k]);
 	printf(" TO ");

@@ -1,5 +1,7 @@
 /* Copyright (c) 2007, Jan Wolter, All Rights Reserved */
 
+char *version= "1.1";
+
 #include "pbnsolve.h"
 
 #include <time.h>
@@ -12,14 +14,14 @@
 #include <mcheck.h>
 #endif
 
-int verbose= 0;
-int maybacktrack= 1;
-int mayprobe= 1;
+int verb[NVERB];
+int maybacktrack= 1, tryharder= 1;
+int mayprobe= 1, mergeprobe= 0;
 int checkunique= 0;
 int checksolution= 0;
 int http= 0;
 
-int nlines, probes, guesses, backtracks;
+int nlines, probes, guesses, backtracks, merges;
 
 
 #ifdef CPULIMIT
@@ -28,7 +30,10 @@ void timeout(int sig)
     if (http)
         puts("<data>\n<status>TIMEOUT</status>\n</data>");
     else
+    {
 	fputs("CPU time limit exceeded\n", stderr);
+        puts("CPU time limit exceeded");
+    }
     exit(1);
 }
 #endif
@@ -39,9 +44,10 @@ int main(int argc, char **argv)
     Puzzle *puz;
     SolutionList *sl= NULL;
     Solution *sol= NULL;
+    char *vi, *vchar= VCHAR;
     char *altsoln= NULL, *goal= NULL;
-    int index= -1;
-    int i,j;
+    int pindex= -1;
+    int i,j, vflag= 0;
     int setsol= 0, nsol= -1;
     int dump= 0, statistics= 0;
     int isunique;
@@ -110,6 +116,15 @@ int main(int argc, char **argv)
 	    {
 		for (j= 1; argv[i][j] != '\0'; j++)
 		{
+		    /* Set flags to turn on debugging for various sections */
+		    if (vflag && (vi= index(vchar,argv[i][j])))
+		    {
+		    	verb[vi-vchar]= 1;
+			continue;
+		    }
+		    else
+		    	vflag= 0;
+
 		    switch (argv[i][j])
 		    {
 		    case 'c':
@@ -125,7 +140,7 @@ int main(int argc, char **argv)
 			http= 0;
 			break;
 		    case 'v':
-			verbose++;
+			vflag= 1;
 			break;
 		    case 's':
 			setsol= 1;
@@ -142,9 +157,17 @@ int main(int argc, char **argv)
 			break;
 		    case 'p':
 			mayprobe= 0;
+			mergeprobe= 0;
+			break;
+		    case 'm':
+			mergeprobe= 1;
 			break;
 		    case 'u':
 			maybacktrack= 1;
+			checkunique= 1;
+			break;
+		    case 'e':
+			tryharder= 0;
 			checkunique= 1;
 			break;
 		    default:
@@ -174,17 +197,19 @@ int main(int argc, char **argv)
 	    }
 	    else if (filename == NULL)
 		filename= argv[i];
-	    else if (index == -1)
-		index= atoi(argv[i]);
+	    else if (pindex == -1)
+		pindex= atoi(argv[i]);
 	    else
 		goto usage;
 	}
 	if (filename == NULL) goto usage;
-	if (index == -1) index= 1;
+	if (pindex == -1) pindex= 1;
 
 	if (http) puts("Content-type: application/xml\n");
-	puz= load_puzzle_file(filename, FF_UNKNOWN, index);
+	puz= load_puzzle_file(filename, FF_UNKNOWN, pindex);
     }
+
+    if (VA) printf("A: pbnsolve version %s\n", version);
 
     /* Print the name of the puzzle */
     if (!http && (puz->id != NULL || puz->title != NULL))
@@ -223,12 +248,12 @@ int main(int argc, char **argv)
 
     if (statistics) sclock= clock();
     init_jobs(puz, sol);
-    if (V3)
+    if (VJ)
     {
-    	puts("INITIAL JOBS:");
+    	puts("J: INITIAL JOBS:");
 	dump_jobs(stdout,puz);
     }
-    nlines= probes= guesses= backtracks= 0;
+    nlines= probes= guesses= backtracks= merges= 0;
     while (1)
     {
 	rc= solve(puz,sol);
@@ -246,12 +271,12 @@ int main(int argc, char **argv)
     	puz->found= solution_string(puz, sol);
 	if (goal != NULL && strcmp(puz->found, goal))
 	{
-	    if (V1) puts("FOUND A SOLUTION THAT DOES NOT MATCH GOAL");
+	    if (VA) puts("A: FOUND A SOLUTION THAT DOES NOT MATCH GOAL");
 	    isunique= 0;
 	    altsoln= puz->found;
 	    break;
 	}
-	if (V1) puts("FOUND ONE SOLUTION - CHECKING FOR OTHERS");
+	if (VA) puts("A: FOUND ONE SOLUTION - CHECKING FOR OTHERS");
 	backtrack(puz,sol);
     }
     if (statistics) eclock= clock();
@@ -292,7 +317,10 @@ int main(int argc, char **argv)
 		printf("ALTERNATE SOLUTION\n%s",puz->found);
 	}
 	else if (puz->found != NULL)
+	{
 	    printf("UNIQUE SOLUTION:\n%s",puz->found);
+	    puz->nsolved= puz->ncells;
+	}
 	else
 	    puts("NO SOLUTION");
     }
@@ -305,12 +333,15 @@ int main(int argc, char **argv)
 	printf("Cells Solved: %d of %d\n",puz->nsolved, puz->ncells);
 	printf("Lines in Puzzle: %d\n",totallines);
 	printf("Lines Processed: %d (%d%%)\n",nlines,nlines*100/totallines);
-	if (mayprobe)
+	if (!mayprobe)
+	    printf("Backtracking: %d guesses, %d backtracks\n",
+	    	guesses,backtracks);
+	else if (!mergeprobe)
 	    printf("Backtracking: %d probes, %d guesses, %d backtracks\n",
 	    	probes,guesses,backtracks);
 	else
-	    printf("Backtracking: %d guesses, %d backtracks\n",
-	    	guesses,backtracks);
+	    printf("Backtracking: %d probes, %d merges, %d guesses, "
+	    	   "%d backtracks\n", probes,merges,guesses,backtracks);
 	printf("Processing Time: %f sec \n",
 		(float)(eclock - sclock)/CLOCKS_PER_SEC);
     }
@@ -323,7 +354,8 @@ int main(int argc, char **argv)
     exit(0);
 
 usage:
-    fprintf(stderr,"usage: %s [-dvvvl] [-s#] <filename> [<index>]\n", argv[0]);
+    fprintf(stderr,"usage: %s [-cdehlmpuvvv] [-s#] <filename> [<index>]\n",
+    	argv[0]);
     exit(1);
 }
 

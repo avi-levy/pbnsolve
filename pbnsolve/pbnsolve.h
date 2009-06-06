@@ -12,7 +12,8 @@
  *
  *  For each cell in the puzzle, we have a Cell structure  This contains
  *  a bitstring with one bit for each color in the puzzle.  Bit i is 1 if
- *  it is possible that the puzzle could be color i.
+ *  it is possible that the puzzle could be color i.  The cell structure also
+ *  keeps a count of the number of bits set in the bitstring.
  *
  *  The solution structure contains arrays of pointers to Cells.  For grid
  *  puzzles we have sol->line[D_ROW] and sol->line[D_COL].  For triddlers
@@ -107,10 +108,24 @@ typedef struct hist_list {
     bit_decl(bit,1);	/* Old bit string of cell */
     /* Do not define any fields after 'bit'.  When we allocate memory for this
      * data structure, we will actually be allocating more if we need longer
-     * bitstrings.  Though actually that would only happen if we had a puzzle
-     * with more than 32 colors, which isn't too likely.
+     * bitstrings.
      */
 } Hist;
+
+/* Probe Merge List - settings that have been made for all probes on the
+ * current cell.
+ */
+
+typedef struct merge_elem {
+    struct merge_elem *next;	/* Link to next cell in list */
+    Cell *cell;			/* The cell that was set */
+    short maxc;			/* Maximum guess number */
+    bit_decl(bit,1);	 	/* each eliminated color has a 1 bit */
+    /* Do not define any fields after 'bit'.  When we allocate memory for this
+     * data structure, we will actually be allocating more if we need longer
+     * bitstrings.
+     */
+} MergeElem;
 
 /* Puzzle definition - Describes a puzzle (not it's solution).
  *
@@ -174,13 +189,34 @@ typedef struct {
 #define safedup(x) (x ? strdup(x) : NULL)
 #define safefree(x) if (x) free(x)
 
+/* Debug Flags - You can disable any of these completely by just defining them
+ * to zero.  Then the optimizer will throw out those error messages and things
+ * will run a tiny bit faster.
+ */
+
+#define VA verb[0]	/* Top Level Messages */
+#define VB verb[1]	/* Backtracking */
+#define VE verb[2]	/* Try Everything */
+#define VG verb[3]	/* Guessing */
+#define VJ verb[4]	/* Job Management */
+#define VL verb[5]	/* Line Solver Details */
+#define VM verb[6]	/* Merging */
+#define VP verb[7]	/* Probing */
+#define VU verb[8]	/* Undo Information from Job Management */
+#define VS verb[9]	/* Cell State Changes */
+#define VV verb[10]	/* Report with extra verbosity */
+#define VCHAR "ABEGJLMPUSV"
+#define NVERB 11
+
 /* Global variables */
 
-extern int verbose;
+extern int verb[];
 extern int maybacktrack;
 extern int mayprobe;
+extern int mergeprobe;
 extern int checkunique;
 extern int checksolution;
+extern int tryharder;
 
 /* pbnsolve.c functions */
 
@@ -234,11 +270,12 @@ void flush_jobs(Puzzle *puz);
 void init_jobs(Puzzle *puz, Solution *sol);
 int next_job(Puzzle *puz, int *k, int *i);
 void add_job(Puzzle *puz, int k, int i);
+void add_jobs(Puzzle *puz, Cell *cell);
 void add_hist(Puzzle *puz, Cell *cell, int branch);
 int backtrack(Puzzle *puz, Solution *sol);
 
 /* solve.c functions */
-extern int nlines, guesses, backtracks, probes;
+extern int nlines, guesses, backtracks, probes, merges;
 int solve(Puzzle *puz, Solution *sol);
 
 /* http.c functions */
@@ -247,3 +284,8 @@ char *query_lookup(char *query, char *var);
 
 /* clue.c functions */
 void make_clues(Puzzle *puz, Solution *sol);
+
+/* merge.c functions */
+void merge_guess(void);
+void merge_set(Puzzle *puz, Cell *cell, bit_type *bit);
+int merge_check(Puzzle *puz);
