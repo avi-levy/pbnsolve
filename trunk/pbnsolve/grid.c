@@ -253,3 +253,26 @@ char *solution_string(Puzzle *puz, Solution *sol)
 
     return buf;
 }
+
+/* This is a debugging routine, which checks puz->nsolved against the given
+ * solution.  return -1 if they match, the correct count otherwise.
+ */
+
+int check_nsolved(Puzzle *puz, Solution *sol)
+{
+    int i, j, cnt= 0;
+    Cell *cell;
+
+    for (i= 0; i < sol->n[0]; i++)
+    	for (j=0; (cell= sol->line[0][i][j]) != NULL; j++)
+	{
+	    cnt+= (cell->n == 1);
+if (cell->bit[0] > 3 || cell->bit[0] < 1)
+{
+printf("FAIL: %d %d bad bit %d\n",i,j,cell->bit[0]);
+exit(1);
+}
+	}
+
+    return (puz->nsolved == cnt) ? -1 : cnt;
+}

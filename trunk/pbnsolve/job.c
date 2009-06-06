@@ -72,6 +72,11 @@ void job_exchange(Puzzle *puz, int i, int j)
     ji->priority= jj->priority;
     jj->priority= tmp;
 
+    /* Swap depths */
+    tmp= ji->depth;
+    ji->depth= jj->depth;
+    jj->depth= tmp;
+
     /* Swap line pointers */
     ji->dir= jdir;
     ji->n= jn;
@@ -100,7 +105,7 @@ void heapify_jobs(Puzzle *puz, int i)
 
 /* Add a job onto the job list */
 
-void add_job(Puzzle *puz, int k, int i)
+void add_job(Puzzle *puz, int k, int i, int depth, int bonus)
 {
     Job *job;
     int priority;
@@ -116,7 +121,8 @@ void add_job(Puzzle *puz, int k, int i)
 	 * necessary
 	 */
 
-	puz->job[j].priority+= 4;
+	puz->job[j].priority+= 4 + 25*bonus;
+	if (puz->job[j].depth > depth) puz->job[j].depth= depth;
 
 	while (j > 1 && puz->job[par= j/2].priority < puz->job[j].priority)
 	{
@@ -128,11 +134,11 @@ void add_job(Puzzle *puz, int k, int i)
     }
 
     /* Give higher priority to things on the edge */
-    priority= abs(puz->n[k]/2 - i);
+    priority= abs(puz->n[k]/2 - i) + 25*bonus - 10*depth;
 
 
-    if (VJ) printf(" J: JOB ON %s %d ADDED TO JOBLIST\n",
-		CLUENAME(puz->type,k),i);
+    if (VJ) printf(" J: JOB ON %s %d ADDED TO JOBLIST DEPTH %d PRIORITY %d\n",
+		CLUENAME(puz->type,k),i,depth,priority);
 
     /* Bubble things down until we find the spot to insert the new key */
     j= ++puz->njob;
@@ -146,19 +152,37 @@ void add_job(Puzzle *puz, int k, int i)
     puz->clue[k][i].jobindex= j;
     job= &puz->job[j];
     job->priority= priority;
+    job->depth= depth;
     job->dir= k;
     job->n= i;
 }
 
 
 /* Add jobs for all lines that cross the given cell */
-void add_jobs(Puzzle *puz, Cell *cell)
+void add_jobs(Puzzle *puz, Cell *cell, int depth)
 {
     int k;
 
     if (maylinesolve)
 	for (k= 0; k < puz->nset; k++)
-            add_job(puz, k, cell->line[k]);
+            add_job(puz, k, cell->line[k], depth, 0);
+}
+
+/* Add jobs for all lines that cross the given cell.  This is for grid puzzles
+ * only, alas.  Don't add direction 'except'.
+ */
+
+void add_jobs_edgebonus(Puzzle *puz, Solution *sol, int except, Cell *cell,
+	int depth, bit_type *old)
+{
+    int k;
+
+    if (!maylinesolve) return;
+    for (k= 0; k < puz->nset; k++)
+	if (k != except)
+	    add_job(puz, k, cell->line[k], depth,
+		newedge(puz, sol->line[k][cell->line[k]],
+		    cell->line[1-k], old, cell->bit));
 }
 
 
@@ -166,7 +190,7 @@ void add_jobs(Puzzle *puz, Cell *cell)
  * Return 0 if there is no next job.
  */
 
-int next_job(Puzzle *puz, int *k, int *i)
+int next_job(Puzzle *puz, int *k, int *i, int *d)
 {
     Job *first;
 
@@ -177,6 +201,7 @@ int next_job(Puzzle *puz, int *k, int *i)
     first= &puz->job[1];
     *k= first->dir;
     *i= first->n;
+    *d= first->depth;
     puz->clue[*k][*i].jobindex= -1;
 
     if (--puz->njob == 0) return 1;	/* Heap is now empty */
@@ -221,7 +246,7 @@ void init_jobs(Puzzle *puz, Solution *sol)
     {
 	for (i= 0; i < puz->n[k]; i++)
 	{
-	    d= puz->n[k] - d - 1;
+	    d= puz->n[k] - i - 1;
 	    if (d > i) d= i;
 	    if (puz->clue[k][i].n == 0)
 		puz->job[j].priority= 2000;	/* Blank line */
@@ -255,7 +280,7 @@ void add_hist(Puzzle *puz, Cell *cell, int branch)
 void add_hist2(Puzzle *puz, Cell *cell, int oldn, bit_type *oldbit, int branch)
 {
     Hist *h;
-    int z, nc;
+    int z;
 
     /* We only start keeping a history after the first branch point */
     if (puz->history == NULL && !branch) return;
@@ -263,8 +288,7 @@ void add_hist2(Puzzle *puz, Cell *cell, int oldn, bit_type *oldbit, int branch)
     /* Allocate memory for the new history element, enlarging it enough
      * to hold bitstrings of the size we need.
      */
-    nc= bit_size(puz->ncolor);
-    h= (Hist *)malloc(sizeof(Hist) + nc - bit_size(1));
+    h= (Hist *)malloc(sizeof(Hist) + puz->colsize - bit_size(1));
 
     /* Add it onto the linked list */
     h->prev= puz->history;
@@ -274,7 +298,7 @@ void add_hist2(Puzzle *puz, Cell *cell, int oldn, bit_type *oldbit, int branch)
     h->cell= cell;
     h->n= oldn;
 
-    for (z= 0; z < nc; z++)
+    for (z= 0; z < puz->colsize; z++)
     	h->bit[z]= oldbit[z];
 }
 
@@ -287,7 +311,6 @@ void add_hist2(Puzzle *puz, Cell *cell, int oldn, bit_type *oldbit, int branch)
 int undo(Puzzle *puz, Solution *sol, int leave_branch)
 {
     Hist *h;
-    int nc= bit_size(puz->ncolor);
     int z, k, oldn;
     int is_branch;
 
@@ -302,7 +325,7 @@ int undo(Puzzle *puz, Solution *sol, int leave_branch)
 
 	    /* Restore saved value */
 	    h->cell->n= h->n;
-	    for (z= 0; z < nc; z++)
+	    for (z= 0; z < puz->colsize; z++)
 	    	h->cell->bit[z]= h->bit[z];
 
 	    if (VU)
@@ -335,7 +358,6 @@ int undo(Puzzle *puz, Solution *sol, int leave_branch)
 int backtrack(Puzzle *puz, Solution *sol)
 {
     Hist *h;
-    int nc= bit_size(puz->ncolor);
     int z, k, oldn;
 
     if (VB) printf("B: BACKTRACKING TO LAST GUESS\n");
@@ -353,7 +375,7 @@ int backtrack(Puzzle *puz, Solution *sol)
     h= puz->history;
 
     /* Reset any bits previously set */
-    for (z= 0; z < nc; z++)
+    for (z= 0; z < puz->colsize; z++)
 	h->cell->bit[z]= ((~h->cell->bit[z]) & h->bit[z]);
 
     /* Count the number of colors left */
@@ -372,6 +394,7 @@ int backtrack(Puzzle *puz, Solution *sol)
 	printf(" TO ");
 	dump_bits(stdout,puz,h->cell->bit);
 	printf(" (%d)\n",h->cell->n);
+	/* print_solution(stdout, puz, sol);*/
     }
 
     /* Now that we've backtracked to it and inverted it, it is no
@@ -393,10 +416,36 @@ int backtrack(Puzzle *puz, Solution *sol)
     if (maylinesolve)
     {
 	flush_jobs(puz);
-	add_jobs(puz,h->cell);
+	add_jobs(puz,h->cell,0);
     }
 
     backtracks++;
 
+    return 0;
+}
+
+
+/* If the ith cell in the given line has transitioned from old to new, has
+ * it made an edge in that direction, in other words, if it used to have some
+ * colors in common with one of it's two neighbor cells, but doesn't any more.
+ */
+
+#define noedge(a,b) (~((a) ^ (b)) & ((a) | (b)))
+int newedge(Puzzle *puz, Cell **line, int i, bit_type *old, bit_type *new)
+{
+    int z;
+    bit_type *n1, *n2;
+    static bit_type one=1, zero= 0;
+
+    for (z= 0; z < puz->colsize; z++)
+    {
+    	n1= (i > 0) ? &(line[i-1]->bit[z]) :
+	    ((z == 0) ? &one : &zero);
+    	n2= (line[i+1] != NULL) ? &(line[i+1]->bit[z]) : 
+	    ((z == 0) ? &one : &zero);
+	if ((!noedge(*n1,new[z]) && noedge(*n1,old[z])) ||
+	    (!noedge(*n2,new[z]) && noedge(*n2,old[z])) )
+		return 1;
+    }
     return 0;
 }

@@ -1,7 +1,7 @@
 
 # Settings on Jan's OpenSUSE 10.2 system:
 LIB=-lxml2 -lm
-CFLAGS= -O2
+CFLAGS= -g
 
 # Settings on Pair.com
 # LIB=-lxml2 -lm -L/usr/local/lib

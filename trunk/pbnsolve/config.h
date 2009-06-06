@@ -56,3 +56,17 @@
  */
 
 /* #define NOXML /**/
+
+/* DEBUG LEVEL - This controls how much debugging code is compiled into the
+ * program.  If debugging code is included in the program, then it is turned
+ * on with the -v flag.  However, it slows down the solver very slightly even
+ * when it is turned off, so for production use you probably want it off.
+ * The levels are:
+ *
+ *   DEBUG_LEVEL == 0            No debugging output is turned on.
+ *   DEBUG_LEVEL == 1            Everything off except -vA.
+ *   DEBUG_LEVEL == 2            Everything on except -vL.
+ *   DEBUG_LEVEL == 3            Everything on.
+ */
+
+#define DEBUG_LEVEL 2

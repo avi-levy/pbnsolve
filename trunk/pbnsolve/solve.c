@@ -228,7 +228,7 @@ void guess_cell(Puzzle *puz, Solution *sol, Cell *cell, int c)
     puz->nsolved++;
 
     /* Put all crossing lines onto the job list */
-    add_jobs(puz, cell);
+    add_jobs(puz, cell, 0);
 }
 
 
@@ -237,17 +237,33 @@ void guess_cell(Puzzle *puz, Solution *sol, Cell *cell, int c)
  * a contradiction was found, one otherwise.
  */
 
-int logic_solve(Puzzle *puz, Solution *sol)
+int logic_solve(Puzzle *puz, Solution *sol, int contradicting)
 {
-    int dir, i;
+    int dir, i, depth;
 
-    while (next_job(puz, &dir, &i))
+    while (next_job(puz, &dir, &i, &depth))
     {
 	nlines++;
-	if (VB) printf("*** %s %d\n",CLUENAME(puz->type,dir), i);
+	if (VB && !VC) printf("*** %s %d\n",CLUENAME(puz->type,dir), i);
 	if (VB & VV) dump_line(stdout,puz,sol,dir,i);
 
-	if (!apply_lro(puz, sol, dir, i))
+	if (contradicting && depth >= contradepth)
+	{
+	    /* At max depth we just check if the line is solvable */
+	    int *soln= left_solve(puz, sol, dir, i);
+	    if (soln != NULL)
+	    {
+		if (VC) printf("C: %s %d OK AT DEPTH %d\n",
+		    cluename(puz->type,dir),i,depth);
+	    }
+	    else
+	    {
+		if (VC) printf("C: %s %d FAILED AT DEPTH %d\n",
+		    cluename(puz->type,dir),i,depth);
+		return 0;
+	    }
+	}
+	else if (!apply_lro(puz, sol, dir, i, depth + 1))
 	{
 	    /* Found a contradiction */
 	    return 0;
@@ -269,7 +285,7 @@ int logic_solve(Puzzle *puz, Solution *sol)
 int solve(Puzzle *puz, Solution *sol)
 {
     Cell *cell;
-    int probing= 0;
+    int probing= 0, contradicting= 0;
     int besti, bestj, bestc, bestnleft;
     int i, j, c, nleft, neigh, stalled, rc;
 
@@ -282,7 +298,7 @@ int solve(Puzzle *puz, Solution *sol)
 
     while (1)
     {
-	if (!maylinesolve || (stalled= logic_solve(puz,sol)))
+	if (!maylinesolve || (stalled= logic_solve(puz,sol,contradicting)))
 	{
 	    /* line solving hit a dead end but not a contradiction */
 
@@ -319,14 +335,60 @@ int solve(Puzzle *puz, Solution *sol)
 	{
 	    /* Logical solving has stalled.  Try searching */
 
+	    if (VB) printf("B: STUCK - Line-by-line solving failed\n");
+	    if (VB) print_solution(stdout,puz,sol);
+
+	    if (maycontradict && !probing)
+	    {
+		/* Contradiction search algorithm */
+		if (!contradicting)
+		{
+		    /* Starting a new probe sequence - initialize stuff */
+		    if (VC) printf("C: STARTING CONTRADICTION SEARCH\n");
+		    i= j= c= 0;
+		    contradicting= 1;
+		}
+		else
+		{
+		    /* Failed to find a contradiction - undo it */
+		    if (VC) printf("C: NO CONTRADICTION ON (%d,%d)%d\n",i,j,c);
+		    undo(puz,sol,0);
+		    c++;
+		}
+
+		/* Scan for the next cell to try a contradiction on */
+		for (; i < sol->n[0]; i++)
+		{
+		    for (; (cell= sol->line[0][i][j]) != NULL; j++)
+		    {
+			if (cell->n <= 1) continue;
+		    	if (count_neighbors(sol, i, j) < 1) continue;
+
+			for (; c < puz->ncolor; c++)
+			{
+			    if (may_be(cell, c))
+			    {
+				/* Found a cell - go do contradiction on it */
+				if (VC)
+				    printf("C: TRYING (%d,%d) COLOR %d\n",
+				    	i,j,c);
+				contratests++;
+				guess_cell(puz,sol,cell,c);
+				goto loop;
+			    }
+			}
+			c= 0;
+		    }
+		    j= 0;
+		}
+		contradicting= 0;
+	    }
+
 	    /* Stop if no guessing is allowed */
 	    if (!maybacktrack) return 1;
 	    
 	    /* Shut down the exhaustive search once we start searching */
 	    if (maylinesolve) mayexhaust= 0;
-
-	    if (VB) printf("B: STUCK\n");
-	    if (VB) print_solution(stdout,puz,sol);
 
 	    if (mayprobe)
 	    {
@@ -355,7 +417,7 @@ int solve(Puzzle *puz, Solution *sol)
 		    if (VP) printf("P: UNDOING PROBE\n");
 		    undo(puz,sol,0);
 		    if (VP) dump_history(stdout, puz, 0);
-		    ++c;
+		    c++;
 		}
 
 		/* Scan for the next cell to probe on */
@@ -442,7 +504,9 @@ int solve(Puzzle *puz, Solution *sol)
 	    /* We have hit a contradiction - try backtracking */
 	    if (VB) printf("B: STUCK ON CONTRADICTION\n");
 
-	    probing= 0;		/* If we were probing, we aren't any more */
+	    /* if we were probing or contradicting */
+	    /*contradicting= 0;	*/
+	    probing= 0;
 	    guesses++;
 
 	    /* Back up to last guess point, and invert that guess */

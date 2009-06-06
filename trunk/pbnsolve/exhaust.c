@@ -97,7 +97,7 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
     int *soln;
     int hits= 0, setcell;
     Cell *cell;
-    int bitsize= bit_size(puz->ncolor) * sizeof(bit_type);
+    int bitsize= puz->colsize * sizeof(bit_type);
     bit_type *realbit= (bit_type *) malloc(bitsize);
     char *rowpad, **colpad, *pad;
 
@@ -169,7 +169,6 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 			 * Mark them in the scratch pad.
 			 */
 			mark_soln(puz,pad,soln,i,j,k);
-			free(soln);
 		    }
 		    else
 		    {
@@ -198,7 +197,7 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 			bit_clear(realbit,c);
 			realn--;
 
-			add_jobs(puz, cell);
+			add_jobs(puz, cell, 0);
 
 			/* Unless we are checking, halt when we are done to
 			 * the last color.  Otherwise, we need to test that

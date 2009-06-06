@@ -36,6 +36,9 @@ On Unix:
       Mainly to get include file paths for libxml2 right and decide between
       -O2 (for production) and -g (for development).
 
+      NOTE: -O2 makes a HUGE difference.  It can make pbnsolve runs more
+      than twice as fast.
+
    "make pbnsolve"
 
       Should compile without warnings.
@@ -45,7 +48,7 @@ Usage:
 
 Run syntax is:
 
-   pbnsolve -[bcdhlpt] -[v<msgflags>] [-n<n>] [-s<n>] [-x<n>]
+   pbnsolve -[bdhlopt] -[v<msgflags>] [-n<n>] [-s<n>] [-x<n>]
    	[-f<fmt>] [-a<algorithm>] [<datafile>]
 
 Input files may be in any of several formats, described in the "Input Format"
@@ -98,7 +101,7 @@ Command line options:
 	of multiple solutions always reports back a non-goal solution, but
 	is otherwise similar.
 
-   -d  
+   -o  
         Print a descripition of the puzzle data structure before starting
 	to solve it.  This is mainly for debugging the puzzle reading
 	code.  It's not pretty.
@@ -122,6 +125,18 @@ Command line options:
 	       Doing this this is probably as likely to slow us down as speed
 	       us up, but it ensures that any puzzle solvable by line and color
 	       logic alone will be flagged as 'logical'.
+
+	   C - Contradiction Check.  Try every possible color for every cell
+	       that has more than one possible color left, and search to see
+	       if that leads to a contradiction, but only search a couple
+	       levels down.  If a contradiction is found, eliminate that
+	       color possiblity.  Otherwise forget it.  This should solve
+	       most cells that humans can readily solve, using techniques
+	       like edge logic, because humans only have limited look-ahead.
+	       The depth limit is set by the -d option.  The contradiction
+	       check is done after the line solving algorithms (L and E)
+	       have stalled, but before trying heuristic search algorithms
+	       (GPM).
 
 	   G - Guessing.  Start a depth-first search for a solution, using
 	       heuristics to guess colors for cells, continuing forward until

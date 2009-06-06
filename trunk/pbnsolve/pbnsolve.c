@@ -26,13 +26,15 @@ char *version= "1.1";
 #endif
 
 int verb[NVERB];
-int maybacktrack= 1, mayexhaust= 1;
+int maybacktrack= 1, mayexhaust= 1, maycontradict= 0;
 int mayprobe= 1, mergeprobe= 0, maylinesolve= 1;
+int contradepth= 2;
 int checkunique= 0;
 int checksolution= 0;
 int http= 0, terse= 0;
 
 int nlines, probes, guesses, backtracks, merges, exh_runs, exh_cells;
+int contratests;
 
 
 void timeout(int sig)
@@ -70,6 +72,10 @@ int setalg(char ch)
 	/* Exhaustive Checking */
 	mayexhaust= 1;
     	break;
+    case 'C':
+	/* Contradiction Checking */
+	maycontradict= 1;
+    	break;
     case 'G':
 	/* Guessing */
 	maybacktrack= 1;
@@ -95,6 +101,7 @@ int setalg(char ch)
 	maybacktrack= 0;
 	mayprobe= 0;
 	mergeprobe= 0;
+	maycontradict= 0;
     	break;
     default:
     	return 0;
@@ -106,6 +113,7 @@ int setalg(char ch)
 #define SN_START 1
 #define SN_INDEX 2
 #define SN_CPU 3
+#define SN_CDEPTH 4
 
 int main(int argc, char **argv)
 {
@@ -225,6 +233,10 @@ int main(int argc, char **argv)
 			case SN_CPU:
 			    cpulimit= 10*cpulimit + argv[i][j] - '0';
 			    continue;
+
+			case SN_CDEPTH:
+			    contradepth= 10*contradepth + argv[i][j] - '0';
+			    continue;
 			}
 			goto usage;
 		    }
@@ -240,7 +252,7 @@ int main(int argc, char **argv)
 			checksolution= 1;
 			checkunique= 1;
 			break;
-		    case 'd':
+		    case 'o':
 			dump= 1;
 			break;
 		    case 't':
@@ -257,6 +269,10 @@ int main(int argc, char **argv)
 		    case 'n':
 			setnumber= SN_INDEX;
 			pindex= 0;
+			break;
+		    case 'd':
+			setnumber= SN_CDEPTH;
+			contradepth= 0;
 			break;
 		    case 's':
 			setnumber= SN_START;
@@ -289,7 +305,8 @@ int main(int argc, char **argv)
 
 		if ( (setnumber == SN_START && startsol > 0) ||
 		     (setnumber == SN_INDEX && pindex > 0) ||
-		     (setnumber == SN_CPU && cpulimit > 0) )
+		     (setnumber == SN_CPU && cpulimit > 0) ||
+		     (setnumber == SN_CDEPTH && contradepth > 0) )
 			setnumber= SN_NONE;
 	    }
 	    else if (setformat)
@@ -301,8 +318,9 @@ int main(int argc, char **argv)
 	    {
 		int n= atoi(argv[i]);
 		if (setnumber == SN_START) startsol= n;
-		if (setnumber == SN_INDEX) pindex= n;
-		if (setnumber == SN_CPU) cpulimit= n;
+		else if (setnumber == SN_INDEX) pindex= n;
+		else if (setnumber == SN_CPU) cpulimit= n;
+		else if (setnumber == SN_CDEPTH) contradepth= n;
 		setnumber= SN_NONE;
 	    }
 	    else if (filename == NULL)
@@ -341,6 +359,8 @@ int main(int argc, char **argv)
 	    puz= load_puzzle_file(filename, fmt, pindex);
     }
 
+    /* preallocate some arrays used by the line solver */
+    line_prealloc(puz);
 
     if (VA) printf("A: pbnsolve version %s\n", version);
 
@@ -387,6 +407,7 @@ int main(int argc, char **argv)
 	dump_jobs(stdout,puz);
     }
     nlines= probes= guesses= backtracks= merges= exh_runs= exh_cells= 0;
+    contratests= 0;
     while (1)
     {
 	rc= solve(puz,sol);
