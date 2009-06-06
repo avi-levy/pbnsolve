@@ -1,0 +1,29 @@
+version 1.02 - May 26, 2009
+  - Ability to read several black & white puzzle puzzle file formats.
+  - Ability to read pbm image files as puzzles.
+  - Addition of -b "terse mode" flag.
+  - Addition of -f option to explicitly set file formats.
+  - Ability to set cpu limits from command line with -x<secs> flag.
+  - Command line version now reads puzzle from standard input if no file
+    name is given.
+  - For files containing multiple puzzles, puzzle index to solve is now
+    given on -n option.
+  - In cgi-mode, a CGI argument name "format" can be passed which contains
+    a string identifying the file format.
+  - Attached Apache 2.0 license to the distribution.
+  - Improvement of documentation.
+
+version 1.01 - May 23, 2009
+  - add CHANGELOG
+  - print version number on startup if verbose
+  - add merging on probes.  This looks for cells that were set to the same
+    value on all probes of different color settings for some other cell.
+    This, alas, seems to just slow us down on nearly all puzzles.
+  - after logical solving gets stuck for the first time, but before we start
+    guessing, try setting every cell to every possible cover, and check if any
+    of these settings contradict any clue.  There is a chance that this will
+    find some markable squares missed by the LRO linesolver.
+  - Finer control of debugging messages.
+
+version 1.0 - Sep 10, 2007
+  - original release
