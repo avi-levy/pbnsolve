@@ -1,3 +1,18 @@
+/* Copyright 2007 Jan Wolter
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -183,6 +198,10 @@ typedef struct {
 
 #define FF_UNKNOWN	0	/* File type unknown */
 #define FF_XML		1	/* Our own XML file format */
+#define FF_MK		2	/* The Olsak's MK file format */
+#define FF_NIN		3	/* Wilk's NIN file format */
+#define FF_NON		4	/* Simpson's NON file format */
+#define FF_PBM		5	/* netpbm PBM image file */
 
 /* Macros */
 
@@ -226,6 +245,7 @@ void fail(const char *fmt, ...);
 
 Puzzle *load_puzzle_file(char *filename, int fmt, int index);
 Puzzle *load_puzzle_mem(char *image, int fmt, int index);
+Puzzle *load_puzzle_stdin(int fmt, int index);
 
 /* puzz.c functions */
 

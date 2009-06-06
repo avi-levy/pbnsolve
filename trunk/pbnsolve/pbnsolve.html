@@ -4,9 +4,10 @@
 <body>
 <center>
 <h1>The '<tt>pbnsolve</tt>' Paint-by-Number Puzzle Solver</h1>
+<h3>Version 1.2</h3>
 <h3><a href="http://unixpapa.com">Jan Wolter</a></h3>
 </center>
-<h2>Introduction</h2>
+<h2>1. Introduction</h2>
 <p>
 "Paint-By-Number" is one of many names for a type of graphical logic puzzle
 originating in Japan.  Other common names for these puzzles are Nonograms,
@@ -38,7 +39,7 @@ The helper is implemented in Javascript and is not a full solver.
 <tt>Pbnsolve</tt> is used on webpbn.com only in the puzzle creation
 environment to check puzzles.
 <p>
-<h2>Features</h2>
+<h2>2. Features</h2>
 <ul>
 <li>
 <tt>Pbnsolve</tt> is open source.  I place no restrictions on it's use
@@ -47,7 +48,7 @@ except that my name and copyright should be retained.
 <li>
 <tt>Pbnsolve</tt> is written in C for Unix systems.  It requires
 <a href="http://xmlsoft.org/">libxml2</a> (the Gnome XML parser library).
-Since that library is very portable, it is probably possible to
+Since that library is very portable, it is probably easy to
 port <tt>pbnsolve</tt> to things like Windows or MacOS X,
 but I have not done so and don't intend to.
 <p>
@@ -56,8 +57,18 @@ but I have not done so and don't intend to.
 black-and-white puzzles.
 <p>
 <li>
-<tt>Pbnsolve</tt> uses a
-<a href="pbn_fmt.html">flexible and general XML format</a> for puzzle input.
+<tt>Pbnsolve</tt> can read several different formats of input files:
+<table border="1">
+<tr><td><tt>xml</tt></td>
+<td>A <a href="pbn_fmt.html">flexible and general XML format</a> that
+which is <tt>pbnsolve</tt>'s native format.</td></tr>
+<tr><td><tt>non</tt></td>
+<td><a href="http://www.comp.lancs.ac.uk/~ss/nonogram/fmt2">Steve Simpson's file format</a> for black and white puzzles.</td></tr>
+<tr><td><tt>mk</tt></td>
+<td>The black and white puzzle format used by the <a href="http://www.olsak.net/grid.html#English">Ol&#154;&aacute;k</a> solver.</td></tr>
+<tr><td><tt>nin</tt></td>
+<td>The black and white puzzle format used by the <a href="http://students.mimuw.edu.pl/~jw209508/nonogram/">Jakub Wilk</a> solver.</td></tr>
+</table>
 <p>
 <li>
 Input to <tt>pbnsolve</tt> may be given either as a set of clues, or as
@@ -76,19 +87,24 @@ not been tested and may be buggy.
 does not grow substantially no matter how long it runs.
 <p>
 <li>
-<tt>Pbnsolve</tt> was designed to be able to handle "triddler" puzzles
-(hexagontal puzzles with triangular cells), but though there are many stubs
-to support this, it is far from completely implemented.
+<tt>Pbnsolve</tt> can reliably determine if a puzzle is solvable using
+only <a href="http://webpbn.com/solving.html">line and
+color logic</a>.
 <p>
 <li>
 <tt>Pbnsolve</tt> may be run as a CGI program, reading it's arguments from
 CGI arguments and outputing results in XML format, so it can be used as an
 AJAX application.
+<p>
+<li>
+<tt>Pbnsolve</tt> was designed to be able to handle "triddler" puzzles
+(hexagontal puzzles with triangular cells), but though there are many stubs
+to support this, it is far from completely implemented.
 </ul>
 
-<h2>Algorithm</h2>
+<h2>3. Algorithm</h2>
 
-<h3>Line Solver</h3>
+<h3>3.1. Line Solver</h3>
 
 A line-solver is an algorithm that given a single row or column, and the solution
 so far of that line, tries to figure out what additional cells can be marked.
@@ -150,7 +166,7 @@ the line can't be red.
 Steve Simpson has described what appears to be a better line solving algorithm.
 Someday I should figure out if that can be adapted to multi-color puzzles.
 
-<h3>Logical Solving</h3>
+<h3>3.2. Logical Solving</h3>
 
 The first thing <tt>pbnsolve</tt> tries to do is solve the puzzle logically.
 It creates a job list, which is just a list of lines that we want to run the line solver
@@ -173,10 +189,24 @@ at line solving than the left-right overlap algorithm.
 <p>
 In many cases, however, this will fail to fully solve the puzzle.
 The job list will empty out, with some cells still in an unknown state.
-If <tt>pbnsolve</tt> is run with the <tt>-t</tt> flag, then it will halt
-at that point, with the puzzle incompletely solved.
+<p>
+When <tt>pbnsolve</tt> reaches this point, it does an exhaustive check to make
+sure that every cell that can be mark by looking at one clue at a time has
+been marked.  This is necessary because our line solver algorithm is not
+complete and can miss marking some cells.
+The exhaustive check tries marking every unsolved cell with each of the colors
+that it could possibly be, and then checks if the row and column containing
+that cell can still be solved.  If not, it removes that color from that cell's
+list of possible colors.
+If this algorithm succeeds in marking any cells, we resume the normal
+line-by-line solving algorihtm.
+<p>
+If the exhaustive check fails, then logical solving will have failed us, and
+it is time to try something else (
+unless <tt>pbnsolve</tt> was run with the <tt>-t</tt> flag, in which case
+it will just halt with the puzzle incompletely solved).
 
-<h3>Guessing</h3>
+<h3>3.3. Guessing</h3>
 
 When the logical solver stalls, we need to fall back to a search strategy.
 My first cut at this was to implement a straight-forward depth-first search.
@@ -228,7 +258,7 @@ do much better if you made different guesses.  Some guesses would get you
 much further than others, so fewer guesses would be needed to reach a solution.
 But the guessing heuristics weren't good enough to find these for all puzzles.
 
-<h3>Probing</h3>
+<h3>3.4. Probing</h3>
 
 By default <tt>pbnsolve</tt> now uses a probing approach.
 Instead of using some simple heurisitic to make a guess when the logical
@@ -265,7 +295,22 @@ In many cases where the guessing approach got lost in an exponential search,
 the probing approach finds better guesses, making the search tree
 substantially shallower, and thus winning an exponential speed improvement.
 
-<h2>Performance</h2>
+<h3>3.5. Merging</h3>
+
+If <tt>pbnsolve</tt> is run with the <tt>-m</tt> flag, the it tries merging
+the results of all probes.  In probing we try setting a cell to different
+colors, and compute all the consequences of each of those alternatives.
+With probing extra bookkeeping is done so that we can notice if any other
+cell was set to the same value no matter what value the original cell was
+set to.  If this is the case, then that cell can be set to that value.
+Thus, this basically does <a href="http://webpbn.com/solving.html">Two-Way</a>
+logic.
+<p>
+Though the merging code works, it doesn't actually improve the performance
+of the solver.  The overhead for the extra bookkeeping almost always exceeds
+the gains made.  So, by default, <tt>pbnsolve</tt> does not do merging.
+
+<h2>4. Performance</h2>
 
 <tt>Pbnsolve</tt> solves most puzzles in under a second of CPU time on my
 (fairly fast) computer.
@@ -277,16 +322,30 @@ Evidentally the depth-first search simply becomes lost in an exponentially
 branching tree.
 <p>
 <tt>Pbnsolve</tt> was tested on every puzzle currently in the webpbn.com
-database.  Of the 1006 published puzzles, which generally meet minimal
-standards of sanity, it was able to solve all but 
-<a href="http://webpbn.com/play.cgi?id=672">puzzle 672</a>.
-This puzzle is not logically solvable by humans either, nor is the 
-Ol&#154;&aacute;k program able to solve it.
+database.  Of the 4666 published puzzles, which generally meet minimal
+standards of sanity, it was able to solve all but 11.
+The unsolvable ones were
+<a href="http://webpbn.com/play.cgi?id=672">#672</a>,
+<a href="http://webpbn.com/play.cgi?id=2498">#2498</a>,
+<a href="http://webpbn.com/play.cgi?id=2556">#2556</a>,
+<a href="http://webpbn.com/play.cgi?id=2684">#2684</a>,
+<a href="http://webpbn.com/play.cgi?id=2712">#2712</a>,
+<a href="http://webpbn.com/play.cgi?id=2984">#2984</a>,
+<a href="http://webpbn.com/play.cgi?id=3085">#3085</a>,
+<a href="http://webpbn.com/play.cgi?id=3114">#3114</a>,
+<a href="http://webpbn.com/play.cgi?id=3620">#3620</a>,
+<a href="http://webpbn.com/play.cgi?id=4809">#4809</a>, and
+<a href="http://webpbn.com/play.cgi?id=5549">#5549</a>.
+These are generally hopelessly unsolvable by humans either, and many of them
+should probably be removed from the site (and some may have been by the time
+you read this.)
+I tried puzzle #672 with the Ol&#154;&aacute;k solver, but it couldn't do
+it either.
 <p>
 The unpublished puzzles on the webpbn.com site represent puzzles that either
 the authors were never happy with, or which were rejected from the site,
 usually for being insolvable by the users.
-Of 106 unpublished puzzles on the site, 15 could not be solved by
+Of 753 unpublished puzzles on the site, 24 could not be solved by
 pbnsolve.
 <p>
 All solvers are going to go exponential on some puzzles.
@@ -295,25 +354,13 @@ puzzles is NP-complete.
 <tt>Pbnsolve</tt> does fairly well, but I think there is still a <em>lot</em>
 of room for improvement.
 
-<h2>Directions for Improvement</h2>
+<h2>5. Directions for Improvement</h2>
 
-I have an idea for an improvement to the probing algorithm.  Currently probing
-guesses each possible color for a cell, and explores the consequences of each
-by running the line solver until it stalls.  Suppose we remembered the results
-of each of those probes for a cell and compared them, looking for cells that
-were set to the same color on all branches.  If cell B gets set to white no
-matter what color I set cell A to, then cell B must be white.  I don't know
-how much this would end up gaining us, but there are definitely cases where
-this kind of thing can be very powerful.
-<p>
 A better line solver would help, because better line solving means
 less need for guessing, and less guessing means shallower search trees.
 I suspect that this would only give a fairly modest performance improvement
 in most cases, as most of the things that would find are currently caught
-by the special case of a probe leading to a contradiction.
-However more puzzles would be solved by line-solving alone, and thus could
-be automatically identified as being humanly solvable, so doing this
-would make pbnsolve into a better tool for automatic puzzle checking.
+by the exhaustive check.
 <p>
 I think a bigger performance improvement would come from a better search
 algorithm, perhaps using something like an A* algorithm instead of a
@@ -325,7 +372,7 @@ simultaneously, so this can eat more memory the longer it runs.
 memory consumption doesn't grow much no matter how long it runs.)
 <p>
 An interesting direction to go would be to try to apply more of the
-<a href="http://webpbn.com/solving.cgi">special
+<a href="http://webpbn.com/solving.html">special
 reasoning tricks</a> that humans use in solving more complex puzzles, like
 edge logic.  This would be hard to do, but it would make the program
 into a better tool for assessing how hard the puzzle is for humans to solve.
@@ -338,11 +385,11 @@ to try to fudge the solution back into shape.  Some kind of relaxation
 algorithm that temporarily produces illegal solutions and then
 fudges them back into shape might be interesting.
 
-<h2>Download</h2>
+<h2>6. Download</h2>
 
 A tar archive of the source code can be downloaded here:
 <blockquote>
-<a href="pbnsolve-1.0.tgz">pbnsolve-1.0.tgz</a>
+<a href="pbnsolve-1.1.tgz">pbnsolve-1.1.tgz</a>
 </blockquote>
 </body>
 </html>

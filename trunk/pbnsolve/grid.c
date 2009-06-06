@@ -1,4 +1,17 @@
-/* Copyright (c) 2007, Jan Wolter, All Rights Reserved */
+/* Copyright 2007 Jan Wolter
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 #include "pbnsolve.h"
 #include "read.h"
@@ -15,12 +28,13 @@ Cell *new_cell(int ncolor)
     Cell *cell= (Cell *)malloc(sizeof(Cell) + bit_size(ncolor) - bit_size(1));
     bit_clearall(cell->bit, ncolor)
     cell->n= ncolor;
+    return cell;
 }
 
 
 /* INIT_SOLUTION - Initialize a solution grid.  If "set" is true, then all
  * cells are initialized to allow any color.  Otherwise, they are initialized
- * to allow no colors.
+ * to allow no colors.  The grid size should already have been set in sol.
  */
 
 void init_solution(Puzzle *puz, Solution *sol, int set)

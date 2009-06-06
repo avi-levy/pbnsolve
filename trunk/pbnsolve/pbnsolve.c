@@ -1,15 +1,26 @@
-/* Copyright (c) 2007, Jan Wolter, All Rights Reserved */
+/* Copyright 2007 Jan Wolter
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 char *version= "1.1";
 
 #include "pbnsolve.h"
 
 #include <time.h>
-#ifdef CPULIMIT
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#endif
 #ifdef MEMDEBUG
 #include <mcheck.h>
 #endif
@@ -19,16 +30,17 @@ int maybacktrack= 1, tryharder= 1;
 int mayprobe= 1, mergeprobe= 0;
 int checkunique= 0;
 int checksolution= 0;
-int http= 0;
+int http= 0, terse= 0;
 
 int nlines, probes, guesses, backtracks, merges;
 
 
-#ifdef CPULIMIT
 void timeout(int sig)
 {
     if (http)
         puts("<data>\n<status>TIMEOUT</status>\n</data>");
+    else if (terse)
+        puts("timeout");
     else
     {
 	fputs("CPU time limit exceeded\n", stderr);
@@ -36,7 +48,19 @@ void timeout(int sig)
     }
     exit(1);
 }
-#endif
+
+void setcpulimit(int secs)
+{
+    struct rlimit rlim;
+    rlim.rlim_cur= secs;
+    signal(SIGXCPU,timeout);
+    setrlimit(RLIMIT_CPU, &rlim);
+}
+
+#define SN_NONE 0
+#define SN_START 1
+#define SN_INDEX 2
+#define SN_CPU 3
 
 int main(int argc, char **argv)
 {
@@ -44,25 +68,21 @@ int main(int argc, char **argv)
     Puzzle *puz;
     SolutionList *sl= NULL;
     Solution *sol= NULL;
-    char *vi, *vchar= VCHAR;
+    int setnumber= SN_NONE;
+    char *format= NULL, *vi, *vchar= VCHAR;
     char *altsoln= NULL, *goal= NULL;
-    int pindex= -1;
+    int pindex= 1;	/* if input file has multiple puzzles, which to do */
+    int cpulimit= DEFAULT_CPULIMIT;
     int i,j, vflag= 0;
-    int setsol= 0, nsol= -1;
-    int dump= 0, statistics= 0;
-    int isunique;
+    int startsol= 0;	/* solution to start from, 0 means none */
+    int setformat= 0, dump= 0, statistics= 0;
+    int fmt, isunique, iscomplete;
     int totallines, rc;
     clock_t sclock, eclock;
 #ifdef DUMP_FILE
     FILE *dfp;
 #endif
 
-#ifdef CPULIMIT
-    struct rlimit rlim;
-    rlim.rlim_cur= CPULIMIT;
-    signal(SIGXCPU,timeout);
-    setrlimit(RLIMIT_CPU, &rlim);
-#endif /* CPULIMIT */
 #ifdef NICENESS
     nice(2);
 #endif
@@ -81,7 +101,8 @@ int main(int argc, char **argv)
     if (strstr(argv[0],"pbnsolve.cgi") != NULL)
     {
 	/* If the program is named 'pbnsolve.cgi' then run as a CGI, getting
-	 * puzzle file image from the 'image' cgi variable.
+	 * puzzle file image from the 'image' cgi variable and puzzle format
+	 * from "format".  We run as if the -hc flags were given.
 	 */
 
 	char *image;
@@ -90,11 +111,24 @@ int main(int argc, char **argv)
 	checksolution= 1;
 	checkunique= 1;
 
+#if CGI_CPULIMIT > 0
+	setcpulimit(CGI_CPULIMIT);
+#endif
+
 	puts("Content-type: application/xml\n");
 
 	image= query_lookup(cgi_query, "image");
 	if (image == NULL)
 	    fail("No puzzle description included in CGI query\n");
+
+	format= query_lookup(cgi_query, "format");
+	if (format == NULL)
+	    fmt= FF_UNKNOWN;
+	else
+	{
+	    fmt= fmt_code(format);
+	    free(format);
+	}
 
 #ifdef DUMP_FILE
 	if ((dfp= fopen(DUMP_FILE,"w")) != NULL)
@@ -103,7 +137,7 @@ int main(int argc, char **argv)
 	    fclose(dfp);
 	}
 #endif
-	puz= load_puzzle_mem(image, FF_UNKNOWN, 1);
+	puz= load_puzzle_mem(image, fmt, 1);
 
 	free(image);
 	free(cgi_query);
@@ -125,8 +159,33 @@ int main(int argc, char **argv)
 		    else
 		    	vflag= 0;
 
+		    /* Parse numeric arguments to -n -s or -x */
+		    if (isdigit(argv[i][j]))
+		    {
+			switch (setnumber)
+			{
+			case SN_START:
+			    startsol= 10*startsol + argv[i][j] - '0';
+			    continue;
+
+			case SN_INDEX:
+			    pindex= 10*pindex + argv[i][j] - '0';
+			    continue;
+
+			case SN_CPU:
+			    cpulimit= 10*cpulimit + argv[i][j] - '0';
+			    continue;
+			}
+			goto usage;
+		    }
+		    else
+		    	setnumber= SN_NONE;
+
 		    switch (argv[i][j])
 		    {
+		    case 'b':
+		    	terse= 1;
+			break;
 		    case 'c':
 			checksolution= 1;
 			checkunique= 1;
@@ -142,9 +201,17 @@ int main(int argc, char **argv)
 		    case 'v':
 			vflag= 1;
 			break;
+		    case 'n':
+			setnumber= SN_INDEX;
+			pindex= 0;
+			break;
 		    case 's':
-			setsol= 1;
-			nsol= 0;
+			setnumber= SN_START;
+			startsol= 0;
+			break;
+		    case 'x':
+			setnumber= SN_CPU;
+			cpulimit= 0;
 			break;
 		    case 'h':
 			http= 1;
@@ -170,44 +237,65 @@ int main(int argc, char **argv)
 			tryharder= 0;
 			checkunique= 1;
 			break;
-		    default:
-			if (isdigit(argv[i][j]))
+		    case 'f':
+		    	if (argv[i][j+1] != '\0')
 			{
-			    if (setsol)
-			    {
-				nsol= 10*nsol + argv[i][j] - '0';
-				continue;
-			    }
+			    format= &(argv[i][j+1]);
+			    goto optdone;
 			}
+			setformat= 1;
+			break;
+		    default:
 			goto usage;
 		    }
 		}
-		if (setsol)
-		{
-		    if (nsol == 0)
-			nsol= -1;
-		    else
-			setsol= 0;
-		}
+		optdone:;
+
+		if ( (setnumber == SN_START && startsol > 0) ||
+		     (setnumber == SN_INDEX && pindex > 0) ||
+		     (setnumber == SN_CPU && cpulimit > 0) )
+			setnumber= SN_NONE;
 	    }
-	    else if (setsol && atoi(argv[i]) > 0)
+	    else if (setformat)
 	    {
-		nsol= atoi(argv[i]);
-		setsol= 0;
+	    	format= argv[i];
+		setformat= 0;
+	    }
+	    else if (setnumber != SN_NONE && atoi(argv[i]) > 0)
+	    {
+		int n= atoi(argv[i]);
+		if (setnumber == SN_START) startsol= n;
+		if (setnumber == SN_INDEX) pindex= n;
+		if (setnumber == SN_CPU) cpulimit= n;
+		setnumber= SN_NONE;
 	    }
 	    else if (filename == NULL)
 		filename= argv[i];
-	    else if (pindex == -1)
-		pindex= atoi(argv[i]);
 	    else
 		goto usage;
 	}
-	if (filename == NULL) goto usage;
-	if (pindex == -1) pindex= 1;
+	if (pindex < 1) pindex= 1;
+
+	if (setformat && !format) goto usage;
+	if (format)
+	{   
+	    fmt= fmt_code(format);
+	    if (fmt == FF_UNKNOWN) fail("Unknown file format: %s\n", format);
+	}
+	else
+	    fmt= (filename == NULL) ? FF_XML : FF_UNKNOWN;
+
+	if (cpulimit > 0)
+	    setcpulimit(cpulimit);
 
 	if (http) puts("Content-type: application/xml\n");
-	puz= load_puzzle_file(filename, FF_UNKNOWN, pindex);
+
+	if (filename == NULL)
+	    puz= load_puzzle_stdin(fmt, pindex);
+	else
+	    puz= load_puzzle_file(filename, fmt, pindex);
     }
+
 
     if (VA) printf("A: pbnsolve version %s\n", version);
 
@@ -222,11 +310,11 @@ int main(int argc, char **argv)
 
     if (dump) dump_puzzle(stdout,puz);
 
-    if (nsol > 0 || checksolution)
+    if (startsol > 0 || checksolution)
     {
 	for (i= 0, sl= puz->sol; sl != NULL; sl= sl->next)
 	{
-	    if (nsol > 0 && sl->type == STYPE_SAVED && ++i == nsol)
+	    if (startsol > 0 && sl->type == STYPE_SAVED && ++i == startsol)
 	    {
 		sol= &sl->s;
 		if (!checksolution || goal != NULL) break;
@@ -234,11 +322,11 @@ int main(int argc, char **argv)
 	    if (checksolution && sl->type == STYPE_GOAL)
 	    {
 	    	goal= solution_string(puz, &sl->s);
-		if (nsol == 0 || sol != NULL) break;
+		if (startsol <= 0 || sol != NULL) break;
 	    }
 	}
-	if (nsol > 0 && sol == NULL)
-	    fail("Saved solution #%d not found\n", nsol);
+	if (startsol > 0 && sol == NULL)
+	    fail("Saved solution #%d not found\n", startsol);
 	if (checksolution && goal == NULL)
 	    fail("Cannot check solution when there is none given\n");
     }
@@ -257,18 +345,39 @@ int main(int argc, char **argv)
     while (1)
     {
 	rc= solve(puz,sol);
+	iscomplete= rc && (puz->nsolved == puz->ncells); /* true unless -l */
 	if (!checkunique || !rc || puz->history == NULL || puz->found != NULL)
 	{
-	    isunique= (puz->history == NULL && puz->found == NULL);
+	    /* Time to stop searching.  Either
+	     *  (1) we aren't checking for uniqueness
+	     *  (2) the last search didn't find any solution
+	     *  (3) the last search involved no guessing
+	     *  (4) a previous search found a solution.
+	     * The solution we found is unique if (3) is true and (4) is false.
+	     */
+	    isunique= (iscomplete && puz->history==NULL && puz->found==NULL);
+
+	    /* If we know the puzzle is not unique, then it is because we
+	     * previously found another solution.  If checksolution is true,
+	     * and we went on to search more, then the first one must have
+	     * been the goal, so this one isn't.
+	     */
 	    if (checksolution && !isunique)
 	    	altsoln= solution_string(puz,sol);
 	    break;
 	}
+
 	/* If we are checking for uniqueness, and we found a solution, but
 	 * we aren't sure it is unique and we haven't found any others before
-	 * then save that solution, and go looking for another.
+	 * then we don't know yet if the puzzle is unique or not, so we still
+	 * have some work to do.  Start by saving the solution we found.
 	 */
     	puz->found= solution_string(puz, sol);
+
+	/* If we have the expected goal, check if the solution we found that.
+	 * if not, we can take non-uniqueness as proven without further
+	 * searching.
+	 */
 	if (goal != NULL && strcmp(puz->found, goal))
 	{
 	    if (VA) puts("A: FOUND A SOLUTION THAT DOES NOT MATCH GOAL");
@@ -276,12 +385,16 @@ int main(int argc, char **argv)
 	    altsoln= puz->found;
 	    break;
 	}
+	/* Otherwise, there is nothing to do but to backtrack from the current
+	 * solution and then resume the search to see if we can find a
+	 * differnt one.
+	 */
 	if (VA) puts("A: FOUND ONE SOLUTION - CHECKING FOR OTHERS");
 	backtrack(puz,sol);
     }
     if (statistics) eclock= clock();
 
-    if (statistics || http)
+    if (statistics || http || terse)
     {
 	totallines= 0;
 	for (i= 0; i < puz->nset; i++)
@@ -307,21 +420,80 @@ int main(int argc, char **argv)
 	printf("<difficulty>%d</difficulty>\n",nlines*100/totallines);
 	puts("</data>");
     }
-    else
+    else if (terse)
     {
-	if (rc)
+	if (!iscomplete)
 	{
-	    printf("STOPPED AT %s SOLUTION:\n", isunique ? "UNIQUE" : "A");
-	    print_solution(stdout, puz, sol);
-	    if (puz->found != NULL)
-		printf("ALTERNATE SOLUTION\n%s",puz->found);
+	    puts("stalled");
+	}
+	else if (rc)
+	{
+	    if (isunique)
+	    {
+		if (nlines <= totallines) printf("trivial ");
+		puts("unique logical");
+	    }
+	    else if (puz->found == NULL)
+	    {
+		puts("solvable");
+	    }
+	    else
+	    {
+		puts("multiple");
+	    }
 	}
 	else if (puz->found != NULL)
 	{
+	    puts("unique");
+	}
+	else
+	    puts("contradition");
+    }
+    else
+    {
+	if (!iscomplete)
+	{
+	    /* Found incomplete solution.  Only with -l */
+	    printf("STALLED WITH PARTIAL SOLUTION:\n");
+	    print_solution(stdout, puz, sol);
+	}
+	else if (rc)
+	{
+	    if (isunique)
+	    {
+		/* Found a solution without ever having to guess */
+		printf("UNIQUE LOGICAL SOLUTION:\n");
+		print_solution(stdout, puz, sol);
+	    }
+	    else if (puz->found == NULL)
+	    {
+		/* Found one solution, but aren't checking uniqueness */
+		printf("STOPPED WITH SOLUTION:\n");
+		print_solution(stdout, puz, sol);
+	    }
+	    else if (altsoln != NULL)
+	    {
+		/* Found a solution different from the goal (-c only) */
+		printf("FOUND NON-GOAL SOLUTION:\n%s",altsoln);
+	    }
+	    else
+	    {
+		/* Found two solutions */
+		printf("FOUND MULTIPLE SOLUTIONS:\n");
+		print_solution(stdout, puz, sol);
+		printf("ALTERNATE SOLUTION\n%s",puz->found);
+	    }
+	}
+	else if (puz->found != NULL)
+	{
+	    /* Found one solution by guessing, but hit a contradiction when
+	     * looking for another.
+	     */
 	    printf("UNIQUE SOLUTION:\n%s",puz->found);
 	    puz->nsolved= puz->ncells;
 	}
 	else
+	    /* Hit a contradiction without finding any solution */
 	    puts("NO SOLUTION");
     }
 
@@ -354,7 +526,7 @@ int main(int argc, char **argv)
     exit(0);
 
 usage:
-    fprintf(stderr,"usage: %s [-cdehlmpuvvv] [-s#] <filename> [<index>]\n",
+    fprintf(stderr,"usage: %s [-cdehlmpuvvv] [-s#] [-n#] [-x#] [<filename>]\n",
     	argv[0]);
     exit(1);
 }
