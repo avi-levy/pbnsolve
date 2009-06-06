@@ -193,7 +193,7 @@ Puzzle *load_nin_puzzle()
 {
     Puzzle *puz;
     int nrow,ncol;
-    char *badfmt= "Input is not in NIN format, as expected";
+    char *badfmt= "Input is not in NIN format, as expected\n";
 
     ncol= sread_pint(0);
     if (ncol == -2) fail("Input is empty");
@@ -223,7 +223,7 @@ Puzzle *load_non_puzzle()
     Puzzle *puz= init_bw_puzzle();
     SolutionList *sl, *lastsl= NULL;
     int d, n;
-    char *badfmt= "Input is not in NON format, as expected";
+    char *badfmt= "Input is not in NON format, as expected\n";
     char *word, *arg;
 
     puz->n[D_ROW]= -1;
@@ -298,6 +298,82 @@ Puzzle *load_non_puzzle()
 
     puz->ncells= puz->n[D_ROW] * puz->n[D_COL];
     puz->nsolved= 0;
+
+    return puz;
+}
+
+
+
+/* LOAD_LP_PUZZLE - load a puzzle in LP format from the current source.
+ * Bosch's examples aren't consistent about what keywords they use and his
+ * program ignores them and just assumes they will be in the right order.
+ * We're sloppy enough to read his files, but not as sloppy as he is.
+ */
+
+Puzzle *load_lp_puzzle()
+{
+    Puzzle *puz= init_bw_puzzle();
+    int d, i, j, n, c;
+    char *badfmt= "Input is not in LP format, as expected\n";
+    char *word;
+    int nrow, ncol;
+    Clue *clue;
+
+    if ((word= sread_keyword()) == NULL) fail(badfmt);
+    if (strcmp(word, "number_of_rows:")) fail(badfmt);
+    if ((nrow= sread_pint(1)) <= 0) fail(badfmt);
+
+    if ((word= sread_keyword()) == NULL) fail(badfmt);
+    if (strcmp(word, "number_of_columns:")) fail(badfmt);
+    if ((ncol= sread_pint(1)) <= 0) fail(badfmt);
+
+    init_clues(puz, nrow, ncol);
+
+    while ((word= sread_keyword()) != NULL)
+    {
+	if (!strncmp(word, "row_", 4))
+	{
+	    d= D_ROW;
+	    i= atoi(word+4);
+	}
+	else if (!strncmp(word, "column_", 7))
+	{
+	    d= D_COL;
+	    i= atoi(word+7);
+	}
+	if (i-- == 0) fail(badfmt);
+
+	if ((word= sread_keyword()) == NULL) fail(badfmt);
+	/*
+	if (strcmp(word, "number_of_tiles:") &&
+	    strcmp(word, "number_of_clusters:")) fail(badfmt);
+	*/
+	if ((n= sread_pint(1)) < 0) fail(badfmt);
+
+	clue= puz->clue[d];
+    	clue[i].n= n;
+	clue[i].s= n;
+	if (n > 0)
+	{
+	    clue[i].length= (int *)malloc(clue[i].s*sizeof(int));
+	    clue[i].color= (int *)malloc(clue[i].s*sizeof(int));
+	}
+	clue[i].jobindex= -1;
+	clue[i].slack= -1;
+
+	if ((word= sread_keyword()) == NULL) fail(badfmt);
+	/*
+	if (strcmp(word, "width(s):") && strcmp(word, "size(s):"))
+	    fail(badfmt);
+        */
+
+	for (j= 0; j < n; j++)
+	{
+	    if ((c= sread_pint(1)) < 0) fail(badfmt);
+	    clue[i].length[j]= c;
+	    clue[i].color[j]= 1;
+	}
+    }
 
     return puz;
 }

@@ -155,7 +155,9 @@ void add_job(Puzzle *puz, int k, int i)
 void add_jobs(Puzzle *puz, Cell *cell)
 {
     int k;
-    for (k= 0; k < puz->nset; k++)
+
+    if (maylinesolve)
+	for (k= 0; k < puz->nset; k++)
             add_job(puz, k, cell->line[k]);
 }
 
@@ -247,6 +249,11 @@ void init_jobs(Puzzle *puz, Solution *sol)
 
 void add_hist(Puzzle *puz, Cell *cell, int branch)
 {
+    add_hist2(puz,cell,cell->n,cell->bit,branch);
+}
+
+void add_hist2(Puzzle *puz, Cell *cell, int oldn, bit_type *oldbit, int branch)
+{
     Hist *h;
     int z, nc;
 
@@ -265,10 +272,10 @@ void add_hist(Puzzle *puz, Cell *cell, int branch)
 
     h->branch= branch;
     h->cell= cell;
-    h->n= cell->n;
+    h->n= oldn;
 
     for (z= 0; z < nc; z++)
-    	h->bit[z]= cell->bit[z];
+    	h->bit[z]= oldbit[z];
 }
 
 
@@ -340,6 +347,8 @@ int backtrack(Puzzle *puz, Solution *sol)
 	return 1;
     }
 
+    if (VB) print_solution(stdout,puz,sol);
+
     /* This will be the branch point */
     h= puz->history;
 
@@ -381,9 +390,11 @@ int backtrack(Puzzle *puz, Solution *sol)
     /* Remove everything from the job list except the lines containing
      * the inverted cell.
      */
-    flush_jobs(puz);
-    for (k= 0; k < puz->nset; k++)
-	add_job(puz, k, h->cell->line[k]);
+    if (maylinesolve)
+    {
+	flush_jobs(puz);
+	add_jobs(puz,h->cell);
+    }
 
     backtracks++;
 

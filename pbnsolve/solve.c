@@ -118,96 +118,6 @@ Cell *pick_a_cell(Puzzle *puz, Solution *sol)
     return favcell;
 }
 
-/* This is a desparate last gasp to try before giving up on logical solving.
- * It tries every cell in every color possible to it and checks if it's row
- * and column has become insolvable.  This is a cover-up for the inadequacies
- * of the left-right-overlap linesolving algorithm, and isn't even very
- * efficiently implemented.  However using it does ensure that we don't start
- * guessing unless we really can't get further with logical solving.
- */
-
-int try_everything(Puzzle *puz, Solution *sol)
-{
-    int i, j, c, k, realn;
-    int *soln;
-    int hits= 0;
-    Cell *cell;
-    int bitsize= bit_size(puz->ncolor);
-    bit_type *realbit= (bit_type *) malloc(bitsize);
-
-    if (VE) printf("E: TRYING EVERYTHING\n");
-    if (VE&&VV) print_solution(stdout, puz, sol);
-
-    for (i= 0; i < sol->n[0]; i++)
-    {
-    	for (j= 0; (cell= sol->line[0][i][j]) != NULL; j++)
-	{
-	    /* Not interested in solved cells */
-	    if (cell->n == 1) continue;
-
-	    /* Save current settings of cell */
-	    memcpy(realbit, cell->bit, bitsize);
-	    realn= cell->n;
-
-	    /* Loop through possible colors */
-	    for (c= 0; c < puz->ncolor; c++)
-	    {
-		/* Skip rejected colors */
-	    	if (!bit_test(realbit,c)) continue;
-
-		if (VE&&VV)
-		    printf("E: Trying Cell (%d,%d) with color %d\n", i,j, c);
-
-		/* Temporarily set that cell to the color */
-		cell->n= 1;
-		bit_clearall(cell->bit, puz->ncolor);
-		bit_set(cell->bit, c);
-
-		/* Check all lines that cross the cell */
-		for (k= 0; k < puz->nset; k++)
-		{
-		    if (!VL && VE && VV)
-		    {
-			printf("E: %s %d: ",
-				CLUENAME(puz->type,k),cell->line[k]);
-			dump_line(stdout,puz,sol,k,cell->line[k]);
-		    }
-
-		    soln= left_solve(puz,sol,k,cell->line[k]);
-		    if (soln)
-		    {
-		    	/* It worked.  We learned nothing */
-			free(soln);
-		    }
-		    else
-		    {
-		    	/* Contradiction!  Eliminate that color possibility */
-			if (VS||VE)
-			    printf("%c: CELL (%d,%d) CAN'T BE COLOR %d\n",
-				VS?'S':'E', i,j, c);
-			hits++;
-			bit_clear(realbit,c);
-			realn--;
-			add_jobs(puz, cell);
-			if (realn == 1)
-			{
-			    puz->nsolved++;
-			    goto celldone;
-			}
-			break;	/* Don't check more directions on this cell */
-		    }
-		}
-	    }
-	    celldone:;
-
-	    /* Restore saved state (which may have been modified */
-	    memcpy(cell->bit, realbit, bitsize);
-	    cell->n= realn;
-	}
-    }
-
-    return hits;
-}
 
 
 #ifdef GC_MAX
@@ -361,7 +271,7 @@ int solve(Puzzle *puz, Solution *sol)
     Cell *cell;
     int probing= 0;
     int besti, bestj, bestc, bestnleft;
-    int i, j, c, nleft, neigh;
+    int i, j, c, nleft, neigh, stalled, rc;
 
     /* One color puzzles are already solved */
     if (puz->ncolor < 2)
@@ -372,7 +282,7 @@ int solve(Puzzle *puz, Solution *sol)
 
     while (1)
     {
-	if (logic_solve(puz,sol))
+	if (!maylinesolve || (stalled= logic_solve(puz,sol)))
 	{
 	    /* line solving hit a dead end but not a contradiction */
 
@@ -380,12 +290,40 @@ int solve(Puzzle *puz, Solution *sol)
 	    if (puz->nsolved == puz->ncells) return 1;
 
 	    /* Look for logically markable squares that the LRO line solver
-	     * may have missed - if we find any resume line solving */
-	    if (tryharder && puz->history == NULL &&
-	    	try_everything(puz,sol)) continue;
+	     * may have missed - if we find any resume line solving.  We
+	     * stop doing this once we have started searching, because it
+	     * doesn't generally speed us up, it's only done to make us more
+	     * sure about things being logically solvable.
+	     */
+	    if (mayexhaust)
+	    {
+	    	rc= try_everything(puz,sol,
+			puz->history != NULL || puz->found != NULL);
+
+		if (rc > 0)
+		{
+		    /* Found some cells.  If we are not done, try
+		     * line solving again */
+		    if (puz->nsolved == puz->ncells) return 1;
+		    continue;
+		}
+		else
+		{
+		   /* Found no cells, or hit a contradiction */
+		   stalled= (rc == 0);
+		}
+	    }
+    	}
+
+	if (stalled)
+	{
+	    /* Logical solving has stalled.  Try searching */
 
 	    /* Stop if no guessing is allowed */
 	    if (!maybacktrack) return 1;
+	    
+	    /* Shut down the exhaustive search once we start searching */
+	    if (maylinesolve) mayexhaust= 0;
 
 	    if (VB) printf("B: STUCK\n");
 	    if (VB) print_solution(stdout,puz,sol);
@@ -434,7 +372,8 @@ int solve(Puzzle *puz, Solution *sol)
 			    	if (may_be(cell, c))
 				{
 				    /* Found a cell - go probe on it */
-				    if (VP) printf("P: PROBING (%d,%d) COLOR %d\n",
+				    if (VP)
+					printf("P: PROBING (%d,%d) COLOR %d\n",
 				    	i,j,c);
 				    probes++;
 				    merge_guess();
@@ -463,8 +402,8 @@ int solve(Puzzle *puz, Solution *sol)
 		probing= 0;
 		if (bestnleft == INT_MAX)
 		{
-		    printf("ERROR: found no cells to prob on.  Puzzle done?\n");
 		    print_solution(stdout,puz,sol);
+		    printf("ERROR: found no cells to prob on.  Puzzle done?\n");
 		    printf("solved=%d cells=%d\n",puz->nsolved, puz->ncells);
 		    exit(1);
 		}
@@ -484,6 +423,7 @@ int solve(Puzzle *puz, Solution *sol)
 		if (cell == NULL)
 		    return 0;
 
+		c= pick_color(puz,sol,cell);
 		if (VB)
 		{
 		    int k;
@@ -493,7 +433,7 @@ int solve(Puzzle *puz, Solution *sol)
 		    printf("\n");
 		}
 
-		guess_cell(puz, sol, cell, pick_color(puz,sol,cell));
+		guess_cell(puz, sol, cell, c);
 		guesses++;
 	    }
 	}
