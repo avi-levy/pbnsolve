@@ -203,8 +203,9 @@ void dump_jobs(FILE *fp, Puzzle *puz)
     for (n= 1; n <= puz->njob; n++)
     {
 	job= &puz->job[n];
-    	fprintf(fp,"Job #%d: %s %d (%d)\n",
-	    n, cluename(puz->type,job->dir), job->n, job->priority);
+    	fprintf(fp,"Job #%d: %s %d (prior=%d,depth=%d)\n",
+	    n, cluename(puz->type,job->dir), job->n,
+	    job->priority, job->depth);
     }
 
     if (puz->njob == 0) fprintf(fp,"No Jobs\n");

@@ -65,7 +65,7 @@ typedef struct {
 
 typedef struct {
     int nset;		/* Number of directions 2 for grids, 3 for triddlers */
-    Cell ***line[3];	/* 2 or three roots for the cell array */
+    Cell ***line[3];	/* 2 or 3 roots for the cell array */
     int n[3];		/* Length of the line[] arrays */
 } Solution;
 
@@ -109,6 +109,7 @@ typedef struct {
 
 typedef struct {
     int priority;	/* High number for more promissing jobs */
+    int depth;		/* Used in contradiction search only */
     int dir;		/* Direction of line that needs work (D_ROW/D_COL) */
     int n;		/* Index of line that needs work */
 } Job;
@@ -174,6 +175,7 @@ typedef struct merge_elem {
 typedef struct {
     int type;		/* Puzzle type.  Some PT_ value */
     int ncolor,scolor;	/* Number of colors used, size of color array */
+    int colsize;	/* Array size of color bit arrays */
     int nset;		/* Number of directions 2 for grids, 3 for triddlers */
     Clue *clue[3];	/* Arrays of clues (nset of which are used) */
     int n[3];		/* Length of the clue[] arrays */
@@ -213,19 +215,53 @@ typedef struct {
 
 #define VA verb[0]	/* Top Level Messages */
 #define VB verb[1]	/* Backtracking */
-#define VE verb[2]	/* Try Everything */
-#define VG verb[3]	/* Guessing */
-#define VJ verb[4]	/* Job Management */
-#define VL verb[5]	/* Line Solver Details */
-#define VM verb[6]	/* Merging */
-#define VP verb[7]	/* Probing */
-#define VU verb[8]	/* Undo Information from Job Management */
-#define VS verb[9]	/* Cell State Changes */
-#define VV verb[10]	/* Report with extra verbosity */
-#define VCHAR "ABEGJLMPUSV"
-#define NVERB 11
+#define VC verb[2]	/* Contradiction Search */
+#define VE verb[3]	/* Try Everything */
+#define VG verb[4]	/* Guessing */
+#define VJ verb[5]	/* Job Management */
+#define VL verb[6]	/* Line Solver Details */
+#define VM verb[7]	/* Merging */
+#define VP verb[8]	/* Probing */
+#define VU verb[9]	/* Undo Information from Job Management */
+#define VS verb[10]	/* Cell State Changes */
+#define VV verb[11]	/* Report with extra verbosity */
+#define VCHAR "ABCEGJLMPUSV"
+#define NVERB 12
 
 extern int verb[];
+
+#if DEBUG_LEVEL < 3
+#undef VL
+#define VL 0
+#endif
+
+#if DEBUG_LEVEL < 2
+#undef VB
+#define VB 0
+#undef VC
+#define VC 0
+#undef VE
+#define VE 0
+#undef VG
+#define VG 0
+#undef VJ
+#define VJ 0
+#undef VM
+#define VM 0
+#undef VP
+#define VP 0
+#undef VU
+#define VU 0
+#undef VS
+#define VS 0
+#undef VV
+#define VV 0
+#endif
+
+#if DEBUG_LEVEL < 1
+#undef VA
+#define VA 0
+#endif
 
 /* Macros */
 
@@ -242,6 +278,8 @@ extern int mergeprobe;
 extern int checkunique;
 extern int checksolution;
 extern int mayexhaust;
+extern int maycontradict;
+extern int contradepth;
 
 /* pbnsolve.c functions */
 
@@ -284,25 +322,30 @@ int count_slack(Puzzle *puz, Solution *sol, int k, int i);
 int count_paint(Puzzle *puz, Solution *sol, int k, int i);
 void count_cell(Puzzle *puz, Cell *cell);
 char *solution_string(Puzzle *puz, Solution *sol);
+int check_nsolved(Puzzle *puz, Solution *sol);
 
 /* line_lro.c functions */
+void line_prealloc(Puzzle *puz);
 void dump_lro_solve(Puzzle *puz, Solution *sol, int k, int i, bit_type *col);
 int *left_solve(Puzzle *puz, Solution *sol, int k, int i);
 int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell);
 bit_type *lro_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell);
+int apply_lro(Puzzle *puz, Solution *sol, int k, int i, int depth);
 
 /* job.c functions */
 void flush_jobs(Puzzle *puz);
 void init_jobs(Puzzle *puz, Solution *sol);
-int next_job(Puzzle *puz, int *k, int *i);
-void add_job(Puzzle *puz, int k, int i);
-void add_jobs(Puzzle *puz, Cell *cell);
+int next_job(Puzzle *puz, int *k, int *i, int *depth);
+void add_job(Puzzle *puz, int k, int i, int depth, int bonus);
+void add_jobs(Puzzle *puz, Cell *cell, int depth);
+void add_jobs_edgebonus(Puzzle *puz, Solution *sol, int except, Cell *cell, int depth, bit_type *old);
 void add_hist(Puzzle *puz, Cell *cell, int branch);
 void add_hist2(Puzzle *puz, Cell *cell, int oldn, bit_type *oldbit, int branch);
 int backtrack(Puzzle *puz, Solution *sol);
+int newedge(Puzzle *puz, Cell **line, int i, bit_type *old, bit_type *new);
 
 /* solve.c functions */
-extern int nlines, guesses, backtracks, probes, merges;
+extern int nlines, guesses, backtracks, probes, merges, contratests;
 int solve(Puzzle *puz, Solution *sol);
 
 /* exhaust.c functions */

@@ -66,11 +66,9 @@ void merge_guess()
 void merge_set(Puzzle *puz, Cell *cell, bit_type *bit)
 {
     MergeElem *m, *p;
-    int scol, z, zero;
+    int z, zero;
 
     if (!merging) return;
-
-    scol= bit_size(puz->ncolor);
 
     /* Scan existing merge list, to see if we have an entry for this cell */
     for (m= merge_list, p= NULL;
@@ -85,10 +83,10 @@ void merge_set(Puzzle *puz, Cell *cell, bit_type *bit)
     	if (merge_no > 0) return;
 
 	/* Otherwise, make a new merge list entry */
-	m= (MergeElem *)malloc(sizeof(MergeElem) + scol - bit_size(1));
+	m= (MergeElem *)malloc(sizeof(MergeElem) + puz->colsize - bit_size(1));
 	m->cell= cell;
 	m->maxc= merge_no;
-	for (z= 0; z < scol; z++)
+	for (z= 0; z < puz->colsize; z++)
 	    m->bit[z]= cell->bit[z] & ~bit[z];
 	m->next= merge_list;
 	merge_list= m;
@@ -104,7 +102,7 @@ void merge_set(Puzzle *puz, Cell *cell, bit_type *bit)
 
     /* If the cell is on the list, intersect the changes */
     zero= 1;
-    for (z= 0; z < scol; z++)
+    for (z= 0; z < puz->colsize; z++)
     {
     	m->bit[z]&= cell->bit[z] & ~bit[z];
 	if (m->bit[z]) zero= 0;
@@ -157,8 +155,6 @@ int merge_check(Puzzle *puz)
 	n= m->next;
 	if (m->maxc == merge_no)
 	{
-	    int scol= bit_size(puz->ncolor);
-
 	    if (VM)
 	    {
 	    	printf("M: FOUND MERGED CONSEQUENCE ON CELL (%d,%d) BITS ",
@@ -171,7 +167,7 @@ int merge_check(Puzzle *puz)
 	    add_hist(puz, m->cell, 0);
 
 	    /* Set the new value in the cell */
-	    for (z= 0; z < scol; z++)
+	    for (z= 0; z < puz->colsize; z++)
 	        m->cell->bit[z]&= ~m->bit[z];
 	    if (puz->ncolor <= 2)
 	        m->cell->n= 1;
@@ -181,7 +177,7 @@ int merge_check(Puzzle *puz)
 	    if (m->cell->n == 1) puz->nsolved++;
 
             /* Add rows/columns containing this cell to the job list */
-	    add_jobs(puz, m->cell);
+	    add_jobs(puz, m->cell,0);
 
 	    found= 1;
 	}

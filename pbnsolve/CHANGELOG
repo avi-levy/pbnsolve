@@ -1,3 +1,11 @@
+version 1.04 -
+  - Added contradiction checking algorithm.
+  - Reduce amount of allocating and releasing of dynamic memory we do in
+    line_lro.c.
+  - Revisions to job priority assignment.  If a color change to a cell creates
+    edge, then the row that would cross the edge gets a boost to it's
+    priority.
+
 version 1.03 - May 31, 2009
   - Improved efficiency of try_everything() routine by adding a scratchpad.
     Also broke it out to a separate file.
