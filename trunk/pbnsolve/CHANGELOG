@@ -2,6 +2,7 @@ version 1.04 -
   - Added contradiction checking algorithm.
   - Reduce amount of allocating and releasing of dynamic memory we do in
     line_lro.c.
+  - Keep undo history in an array instead of a linked list.
   - Revisions to job priority assignment.  If a color change to a cell creates
     edge, then the row that would cross the edge gets a boost to it's
     priority.
