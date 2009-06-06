@@ -1,0 +1,437 @@
+<html>
+<head>
+</head>
+<body>
+<center>
+<h1>XML Format for Paint-by-Number Puzzles</h1>
+<h2>Version 0.1</h2>
+<h3><a href="http://unixpapa.com">Jan Wolter</a></h3>
+</center>
+<h2>Introduction</h2>
+<p>
+"Paint-By-Number" is one of many names for a type of graphical logic puzzle
+originating in Japan.  Other common names for these puzzles are Nonograms,
+Griddlers, Hanjie, and Picross.  The puzzles consist of a blank grid with
+numbers along the top and one side.  The numbers tell the sizes of the blocks
+of the foreground color in that row and column.  To solve the puzzle, you must
+reconstruct the image by figuring out how the color blocks must be place in
+each row and column.
+<p>
+One place to find examples of these puzzles is at my web site,
+<a href="http://webpbn.com/">webpbn.com</a>.
+Many other sites provide puzzles to solve on-line (e.g.,
+<a href="http://griddlers.net/">griddlers.net</a>) and
+various books and magazines publish these puzzles regularly.  Quite a few
+people have also written programs that allow puzzles to be solved on a
+home computer or a PDA, and various other people have written programs to
+solve puzzles automatically.
+<a href="http://www.comp.lancs.ac.uk/~ss/nonogram/">Steve Simpson's
+Nonogram site</a> includes a good collection of links to paint-by-number
+resources.
+<p>
+In surveying these, I noticed a lack of a good, standardized file format
+for paint-by-number puzzles.
+Every program seems to invent it's own file format.
+So I decided to come up with an XML file format that would be rich enough
+to handle most puzzle-storing applications.
+<p>
+I offer this with some trepedation, as XML formats are typically the
+subject of endless bickering, and I very little experience with
+designing them, but I think this is OK and I presume future versions will
+be better.
+<p>
+The present format has the following charms to recommend it:
+<ul>
+<li>Works for <strong>multicolor</strong> puzzle as well as black &amp;
+    white puzzles.
+<li>Works for puzzles with <strong>triangles</strong> and for
+    <strong>triddlers</strong>.
+    These variations on the standard paint-by-number puzzle will be
+    familiar to users of the <a href="http://griddlers.net/">griddlers.net</a>
+    site.
+<li>Can store single puzzles, or <strong>collections</strong> of puzzles.
+<li>Can store puzzles either by giving just the <strong>clues</strong>,
+    just the <strong>image</strong> of the goal solution, or both.
+<li>Can store various <strong>supplemental information</strong> about
+    puzzles, including titles, information about authorship and copyrights.
+<li>Easily readable/writable using any standard XML parsing library.
+<li>Reasonably well documented (you're lookng at it).
+</ul>
+Obviously not every program that reads or writes these file formats needs
+to support all features.  None of my software, for example, supports triddlers.
+
+<h2>Example</h2>
+
+Below is a sample XML paint-by-number puzzle description file.  This is a
+simple two-color puzzle.  These files can contain multiple puzzles, but this
+example contains just one.
+This example includes both the clues for the puzzle and the intended solution.
+It would be possible to omit either the clues (the two &lt;clue&gt; tags and
+all their content) or the solution (the &lt;solution&gt; tag and all it's
+content).
+<p>
+
+<pre>
+    &lt;?xml version="1.0"?&gt;
+    &lt;!DOCTYPE pbn SYSTEM "http://webpbn.com/pbn-0.1.dtd"&gt;
+
+    &lt;puzzleset&gt;
+    &lt;puzzle type="grid" defaultcolor="black"&gt;
+
+    &lt;title&gt;Sample Puzzle&lt;/title&gt;
+    &lt;author&gt;Jan Wolter&lt;/author&gt;
+    &lt;copyright&gt;&amp;copy; 2004 by Jan Wolter&lt;/copyright&gt;
+    &lt;source&gt;webpbn.com&lt;/source&gt;
+    &lt;id&gt;#1&lt;/id&gt;
+    &lt;description&gt;
+    A dancing stick figure man.
+    &lt;/description&gt;
+
+    &lt;color name="white" char="."&gt;fff&lt;/color&gt;
+    &lt;color name="black" char="X"&gt;000&lt;/color&gt;
+
+    &lt;clues type="columns"&gt;
+    &lt;line&gt;&lt;count&gt;2&lt;/count&gt;&lt;count&gt;1&lt;/count&gt;&lt;/line&gt;
+    &lt;line&gt;&lt;count&gt;2&lt;/count&gt;&lt;count&gt;1&lt;/count&gt;&lt;count&gt;3&lt;/count&gt;&lt;/line&gt;
+    &lt;line&gt;&lt;count&gt;7&lt;/count&gt;&lt;/line&gt;
+    &lt;line&gt;&lt;count&gt;1&lt;/count&gt;&lt;count&gt;3&lt;/count&gt;&lt;/line&gt;
+    &lt;line&gt;&lt;count&gt;2&lt;/count&gt;&lt;count&gt;1&lt;/count&gt;&lt;/line&gt;
+    &lt;/clues&gt;
+
+    &lt;clues type="rows"&gt;
+    &lt;line&gt;&lt;count&gt;2&lt;/count&gt;&lt;/line&gt;
+    &lt;line&gt;&lt;count&gt;2&lt;/count&gt;&lt;count&gt;1&lt;/count&gt;&lt;/line&gt;
+    &lt;line&gt;&lt;count&gt;1&lt;/count&gt;&lt;count&gt;1&lt;/count&gt;&lt;/line&gt;
+    &lt;line&gt;&lt;count&gt;3&lt;/count&gt;&lt;/line&gt;
+    &lt;line&gt;&lt;count&gt;1&lt;/count&gt;&lt;count&gt;1&lt;/count&gt;&lt;/line&gt;
+    &lt;line&gt;&lt;count&gt;1&lt;/count&gt;&lt;count&gt;1&lt;/count&gt;&lt;/line&gt;
+    &lt;line&gt;&lt;count&gt;2&lt;/count&gt;&lt;/line&gt;
+    &lt;line&gt;&lt;count&gt;1&lt;/count&gt;&lt;count&gt;1&lt;/count&gt;&lt;/line&gt;
+    &lt;line&gt;&lt;count&gt;1&lt;/count&gt;&lt;count&gt;2&lt;/count&gt;&lt;/line&gt;
+    &lt;line&gt;&lt;count&gt;2&lt;/count&gt;&lt;/line&gt;
+    &lt;/clue&gt;
+
+    &lt;solution type="goal"&gt;
+    &lt;image&gt;
+    |.XX..|
+    |.XX.X|
+    |..X.X|
+    |.XXX.|
+    |X.X..|
+    |X.X..|
+    |..XX.|
+    |.X.X.|
+    |.X.XX|
+    |XX...|
+    &lt;/image&gt;
+    &lt;/solution&gt;
+
+    &lt;/puzzle&gt;
+    &lt;/puzzleset&gt;
+</pre>
+
+<h2>Details</h2>
+
+A DTD file for this format is available from
+<a href="http://webpbn.com/pbn-0.1.dtd">http://webpbn.com/pbn-0.1.dtd</a>.
+<p>
+The character entities that may appear in the file are are identical to
+those that may be used in HTML files.
+<p>
+The following tags appear in the document:
+<dl>
+<dt><b> &lt;puzzleset&gt;</b>
+<dd>
+    The root tag for the document.  Should be included even if there is only
+    one puzzle.
+<p>
+<dt><b> &lt;puzzle&gt;</b>
+<dd>
+    The root tag for the document.  Attributes are:
+    <dl>
+    <dt><b> type=</b>
+    <dd>
+           puzzle type.  Defaults to "grid" if omitted.  Current legal values
+	   are:
+	   <dl>
+	   <dt><b> "grid"</b>
+	   <dd>
+	            Cells are square and there will be a set of row clues
+		    and a set of column clues.
+	   <p>
+	   <dt><b> "triddler"</b>
+	   <dd>
+	            Cells are triangular, the puzzle is a big hexagon, with
+		    clues along six sides.
+	   </dl>
+	   Other values may be defined in the future.
+    <p>
+    <dt><b> defaultcolor=</b>
+    <dd>
+           The name of the color to use for any &lt;count&gt; tag
+	   that does not include a color= attribute.  If this is not
+	   defined, the default default color is "black".
+    <p>
+    <dt><b> backgroundcolor=</b>
+    <dd>
+           The name of the background color.  This defaults to "white".
+    </dl>
+<p>
+<dt><b> &lt;title&gt;</b>
+<dd>
+    In a &lt;puzzle&gt; this is the title of the puzzle.
+    In a &lt;puzzleset&gt; this is the title of the collection of puzzles.
+    May be omitted in either place.
+<p>
+<dt><b> &lt;author&gt;</b>
+<dd>
+    The name of the author of the puzzle.  If placed in a &lt;puzzleset&gt;
+    tag, this is the default author name for all puzzles that don't define
+    an author name.  May be omitted.
+<p>
+<dt><b> &lt;copyright&gt;</b>
+<dd>
+    A copyright message for the puzzle.  If placed in the &lt;puzzleset&gt;
+    tag, this is the default copyright message for all puzzles that don't
+    define a copyright message.  May be omitted.
+<p>
+<dt><b> &lt;source&gt;</b>
+<dd>
+    Where does the puzzle come from?  If placed in the &lt;puzzleset&gt;
+    this is the default source for all puzzles that don't define a source.
+    May be omitted.
+<p>
+<dt><b> &lt;id&gt;</b>
+<dd>
+    An identifier for the puzzle that is unique within the source.
+    Syntax depends on the source.  Can only appear in a &lt;puzzle&gt; tag,
+    not in a &lt;puzzleset&gt; tag.  May be omitted.
+<p>
+<dt><b> &lt;description&gt;</b>
+<dd>
+    A description of the puzzle.  The sort of thing you might want to display
+    to the solver after they have solved the puzzle.  May be omitted.
+<p>
+<dt><b> &lt;color&gt;</b>
+<dd>
+    Defines a color name used in this puzzle.  Must be in a &lt;puzzle&gt;
+    tag.  There may be multiple color definitions for a puzzle.  Each
+    color definition must have a name= attribute.
+    <p>
+    <dl>
+    <dt><b> name=</b>
+    <dd>
+	   The name of the color.  This can be any text string.
+    <p>
+    <dt><b> char=</b>
+    <dd>
+	   A one-character representation for the color.  This is
+	   used to represent the color in solutions.  May be omitted,
+	   especially if there are no solutions.  White space characters
+	   are not legal.  Neither are the characters  '\', '/', '|', '?',
+	   '[' or ']'.
+    <dl>
+    <p>
+    The content of the color tag is a color value, typically an RGB
+    color code.  This is usually a 3 or 6-digit hexadecimal number,
+    like "3cc" or "210fbe".   A three digit string like "123" is
+    equavalent to the six digit string "112233".
+    <p>
+    For puzzles with triangles, the value can contain two hexadecimal
+    color codes, separated by a "/" or "\", like "000/fff" or
+    "ffffff\000000".
+    <p>
+     Two color names are predefined.  (Because of this, the color declarations
+     in the sample are redundant and could be omitted.)
+     <p>
+     <blockquote>
+     <table border="1">
+     <tr><th>Name</th><th>Value</th><th>Char</th></tr>
+     <tr><td>black</td><td align="center">000</td><td align="center">X</td></tr>
+     <tr><td>white</td><td align="center">fff</td><td align="center">.</td></tr>
+     </table>
+     </blockquote>
+     Any other color used in the puzzle must be defined by a &lt;color&gt; tag.
+<p>
+<dt><b> &lt;clues&gt;</b>
+<dd>
+     A set of clues used in the puzzle.  Must be in a &lt;puzzle&gt; tag.  The
+     "type=" attribute is required.  For a puzzle of type "grid" we expect
+     to see a set of clues with type "columns" and a set of clues of type
+     "rows".
+     <p>
+     For a puzzle of type "triddler" we expect to see six sets of clues,
+     with types "top", "topright", "bottomright", "bottom", "bottomleft" and
+     "topleft".  This labeling assumes that the puzzle is oriented so that
+     there are horizontal lines separating cells, but not vertical cells,
+     and that the horizontal clues are at the left of the puzzle, like this:
+     <pre>
+	        /   / 2 /
+	       / 3 / 1 /
+         ___  ________  3 /
+      1 1 1  /\  /\  /\  /
+       ___  /__\/__\/__\
+      2 3  /\  /\  /\  /
+     ___  /__\/ _\/__\/  \
+       1  \  /\  /\  /  2
+       ___ \/__\/__\/  \
+                      3 \
+	     \ 1 \ 2 \
+	      \   \ 1 \
+     </pre>
+     The "topleft" and "bottomleft" clues are clues for horizontal rows of
+     cells above and below the bend on the left side of the puzzle.
+     The "top" and "topright" clues are for lines in the / direction.  The
+     "bottom" and "bottomright" clues are for lines in the \ direction.
+     The puzzle above would be represented like:
+
+     <pre>
+     &lt;clues type="topleft"&gt;
+     &lt;line&gt;&lt;count&gt;1&lt;/count&gt;&lt;count&gt;1&lt;/count&gt;&lt;count&gt;1&lt;/count&gt;&lt;/line&gt;
+     &lt;line&gt;&lt;count&gt;2&lt;/count&gt;&lt;count&gt;3&lt;/count&gt;&lt;/line&gt;
+     &lt;/clues&gt;
+
+     &lt;clues type="bottomleft"&gt;
+     &lt;line&gt;&lt;count&gt;1&lt;/count&gt;&lt;/line&gt;
+     &lt;/clues&gt;
+
+     &lt;clues type="top"&gt;
+     &lt;line&gt;&lt;count&gt;3&lt;/count&gt;&lt;/line&gt;
+     &lt;line&gt;&lt;count&gt;2&lt;/count&gt;&lt;count&gt;1&lt;/count&gt;&lt;/line&gt;
+     &lt;/clues&gt;
+
+     &lt;clues type="topright"&gt;
+     &lt;line&gt;&lt;count&gt;3&lt;/count&gt;&lt;/line&gt;
+     &lt;/clues&gt;
+
+     &lt;clues type="bottom"&gt;
+     &lt;line&gt;&lt;count&gt;1&lt;/count&gt;&lt;/line&gt;
+     &lt;line&gt;&lt;count&gt;2&lt;/count&gt;&lt;count&gt;1&lt;/count&gt;&lt;/line&gt;
+     &lt;/clues&gt;
+
+     &lt;clues type="bottomright"&gt;
+     &lt;line&gt;&lt;count&gt;3&lt;/count&gt;&lt;/line&gt;
+     &lt;line&gt;&lt;count&gt;2&lt;/count&gt;&lt;/line&gt;
+     &lt;/clues&gt; </pre>
+<p>
+<dt><b> &lt;line&gt;</b>
+<dd>
+     Each clue set contains one or more lines of clues.
+     Line tags must be in a &lt;clues&gt; tag.
+     The order of the lines within the clue is from top to bottom for the
+     horizontal clues, and from left to right for vertical or diagonal clues.
+<p>
+<dt><b> &lt;count&gt;</b>
+<dd>
+     Each line contains zero more more counts.  Count tags must be in a
+     &lt;line&gt; tag.
+     The order of the counts is from left to right for horizontal lines,
+     and from top to bottom for vertical or diagonal lines.
+     Counts have an optional attribute called color:
+     <dl>
+     <dt><b> color=</b>
+     <dd>
+	   The color for the clue.  This can be any color name defined
+	   by a &lt;color&gt; tag.  If the color= attribute is omitted, then
+	   it defaults to the value set by the defaultcolor= attribute on
+	   the &lt;puzzle&gt; tag.
+     </dl>
+<p>
+<dt><b> &lt;solution&gt;</b>
+<dd>
+     The puzzle file may contain solutions.  Each solution can have a
+     type= attribute which can take one of the following values:
+     <p>
+     <dl>
+     <dt><b> type=goal</b>
+     <dd>
+	   This is the goal solution intended by the designer of the puzzle.
+	   If a solver reaches this solution, then the puzzle is considered
+	   "solved".  Well designed puzzles typically have only one goal
+	   solution, but the file format allows for multiple goal solutions,
+	   in which case reaching any goal would constitute "success".
+	   This is the default if no type attribute it given.
+     <p>
+     <dt><b> type=solution</b>
+     <dd>
+	   This is a solution, but not necessarily a goal.  If a solving
+	   program found 16 solutions to a puzzle, it might write them
+	   each out with type="solution".
+     <p>
+     <dt><b> type=saved</b>
+     <dd>
+	   This is a saved soluiton to the puzzle.  It is not necessarily
+	   correct or complete.  If you had partially solved the puzzle,
+	   and wanted to save it for further work later, then that would
+	   be written with type="incomplete".
+     </dl>
+     <p>
+     Solutions may also have an "id=" attribute, which can be used to label
+     particular solutions.
+     They can contain &lt;image&gt; and &lt;note&gt; tags.
+<p>
+<dt><b> &lt;image&gt;</b>
+<dd>
+     The content of the solution image tag gives that solution as a string of
+     characters.  All white space characters (space, tab, newline, carriage
+     return, line feed) are ignored.  All other characters must be either:
+     <p>
+     <ul>
+     <li> A '|', '\' or '/' character to mark the beginnings and endings of
+         rows.
+     <p>
+     <li> A character matching the "char=" attribute of some defined color
+         to indicate a cell of that color.
+     <p>
+     <li> A '?' which means that the cell could be any color.
+     <p>
+     <li> A sequence of characters like '[245]' which means that the cell
+         could be one of the colors who have char= attributes of '2', '4,'
+	 or '5', but not any other color.  If all declared colors (including
+	 the background color) were listed, then this would be equivalent to
+	 a '?'.  If only one is listed, like '[X]' then that would be
+	 equivalent to just writing 'X'.
+     </ul>
+     <p>
+     The latter two forms are acceptable only in type="saved" puzzles, not
+     in type="goal" or type="solution" puzzles.
+     <p>
+     Probably to be really XMLy, there should be some fancy substructure to
+     this tag, but I felt it was simpler just to have it contain an image
+     of the puzzle.
+     <p>
+     For grid type puzzles, the solution is given row-by-row.  Each row starts
+     and ends with a | character.  There may be line-feeds separating the
+     rows, but there need not be.  The solution in the sample above could
+     equally well be given as:
+     <pre>
+	&lt;solution type="goal"&gt;
+	&lt;image&gt;
+	|.XX..||.XX.X||..X.X||.XXX.||X.X..||X.X..||..XX.||.X.X.||.X.XX||XX...|
+	&lt;/image&gt;
+	&lt;/solution&gt;
+     </pre>
+     For triddlers the solution is also stored row-by-row, but the line
+     starting and line ending characters are / or \ depending on the slope
+     of the edge of the puzzle.  Basically if the puzzle looks like this:
+     <pre>
+	      ________
+	     /\ B/\D /\
+	    /A_\/C_\/E_\
+	   /\G /\I /\K /
+	  /F_\/H_\/J_\/
+	  \L /\ N/\ P/
+	   \/_M\/_O\/ </pre>
+     then we save it like this (except, of course, that the letters are
+     replaced by whatever symbol indicates the color for that cell):
+     <pre>
+         /ABCDE\
+        /FGHIJK/
+        \LMNOP/ </pre>
+<p>
+<dt><b> &lt;note&gt;</b>
+<dd>
+     This is just some text describing a solution.  It may be omitted.
+</dl>
+</body>
+</html>
