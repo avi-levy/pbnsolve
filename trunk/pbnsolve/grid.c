@@ -27,7 +27,6 @@ void init_solution(Puzzle *puz, Solution *sol, int set)
 {
     int i, j, col;
     Cell *c;
-    int bitsize= bit_size(puz->ncolor);
 
     puz->nsolved= 0;
 

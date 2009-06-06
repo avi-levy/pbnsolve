@@ -1,8 +1,11 @@
-PBNSOLVE VERSION 1.0
+PBNSOLVE VERSION 1.1
 Jan Wolter
 
 This software is open source.  Any use may be made of it so long as the
 author's name and copyright are retained.
+
+This software requires libxml2 which seems to be available on most modern
+Unix systems.  It is also available from http://xmlsoft.org/.
 
 To compile:
 
@@ -18,7 +21,7 @@ To compile:
 
 Run syntax is:
 
-   pbnsolve -[cdhlpt] -[vvv] [-s <n>] <datafile>
+   pbnsolve -[cdhlpt] -[v<msgflags>] [-s <n>] <datafile>
 
 Command line options:
 
@@ -29,6 +32,12 @@ Command line options:
    -d  
         Print a descripition of the puzzle before starting to solve it.
 
+   -e
+        Do not do the extra search for logically solvable cells before
+	making our first guess.  Skipping this check probably improves
+	performance slightly, but also reduces how effectively we flag
+	puzzles as being logically solvable.
+
    -h  
         Run in http mode.  Output is XML-formatted in a way suitable for
 	use in an AJAX-application.
@@ -36,8 +45,16 @@ Command line options:
    -l  
         Do logical solving only, no backtracking, probing or guessing.
 
+   -m
+        Merge probes.  Whenever we probe on different possible settings for
+	a cell, check to see if all the alternatives set some other cells to
+	the same values.  If they do, set those values.  This was implemented
+	in the hopes that it would improve performance, but the payoff is
+	usually less than the overhead, so it seems to be a dud.
+
    -p  
-        Do not do probing.  Instead use heuristics to guess cells.
+        Do not do probing.  Instead use heuristics to guess cells.  Implies
+	-m, obviously.
 
    -s<n>
         Start solving from one of the "saved" solutions in the input file.
@@ -49,14 +66,22 @@ Command line options:
    -u
    	Check uniqueness.  Determine if the puzzle has a unique solution.
 
-   -v  
-        Run verbose.
-
-   -vv 
-        Run more verbose.
-
-   -vvv
-        Run even more verbose.
+   -v<msgflags>
+        Write debugging messages to standard output.  The <msgflags> are
+	flags that indicate what kinds of debugging messages should be output.
+	Recognized flags include:
+	
+	   A - Top level messages.
+	   B - Backtracking messages.
+	   E - Messages from exhaustive check done before starting to guess.
+	   G - Messages from guessing.
+	   J - Job management messages.
+	   L - Linesolver messages.
+	   M - Merging Messages.
+	   P - Probing Messages.
+	   U - Messages from Undo code used when backtracking.
+	   S - Cell State change messages.
+	   V - Extraverbosity when used with any of the above.
 
 If the program is renamed "pbnsolve.cgi" then it will work as an AJAX
 application.  It ignore command line arguments, take it's input from

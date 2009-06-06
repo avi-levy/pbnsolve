@@ -52,11 +52,14 @@ int count_neighbors(Solution *sol, int i, int j)
  * solved neighbors.  A cell with all neighbors set is our first choice.
  * Among clues with equal numbers of neighbors, we prefer ones in rows or
  * columns with low slack and low numbers of clues.
+ *
+ * This is used only in the heuristic guessing algorithm, not the probing
+ * algorithm.
  */
 
 Cell *pick_a_cell(Puzzle *puz, Solution *sol)
 {
-    int i, j, k, v, maxv;
+    int i, j, v, maxv;
     float s, minrate;
     Cell *cell, *favcell;
 
@@ -85,7 +88,7 @@ Cell *pick_a_cell(Puzzle *puz, Solution *sol)
 		{
 		    maxv= v;
 		    minrate= s;
-		    if (V3) printf("MAX CELL %d,%d SCORE=%d/%f\n",
+		    if (VG) printf("G: MAX CELL %d,%d SCORE=%d/%f\n",
 		    	i,j,maxv,minrate);
 		    favcell= cell;
 	    	}
@@ -95,11 +98,102 @@ Cell *pick_a_cell(Puzzle *puz, Solution *sol)
 
     if (maxv == -1)
     {
-    	if (V1) printf("Called pick-a-cell on complete puzzle\n");
+    	if (VA) printf("Called pick-a-cell on complete puzzle\n");
 	return NULL;
     }
 
     return favcell;
+}
+
+/* This is a desparate last gasp to try before giving up on logical solving.
+ * It tries every cell in every color possible to it and checks if it's row
+ * and column has become insolvable.  This is a cover-up for the inadequacies
+ * of the left-right-overlap linesolving algorithm, and isn't even very
+ * efficiently implemented.  However using it does ensure that we don't start
+ * guessing unless we really can't get further with logical solving.
+ */
+
+int try_everything(Puzzle *puz, Solution *sol)
+{
+    int i, j, c, k, realn;
+    int *soln;
+    int hits= 0;
+    Cell *cell;
+    int bitsize= bit_size(puz->ncolor);
+    bit_type *realbit= (bit_type *) malloc(bitsize);
+
+    if (VE) printf("E: TRYING EVERYTHING\n");
+    if (VE&&VV) print_solution(stdout, puz, sol);
+
+    for (i= 0; i < sol->n[0]; i++)
+    {
+    	for (j= 0; (cell= sol->line[0][i][j]) != NULL; j++)
+	{
+	    /* Not interested in solved cells */
+	    if (cell->n == 1) continue;
+
+	    /* Save current settings of cell */
+	    memcpy(realbit, cell->bit, bitsize);
+	    realn= cell->n;
+
+	    /* Loop through possible colors */
+	    for (c= 0; c < puz->ncolor; c++)
+	    {
+		/* Skip rejected colors */
+	    	if (!bit_test(realbit,c)) continue;
+
+		if (VE&&VV)
+		    printf("E: Trying Cell (%d,%d) with color %d\n", i,j, c);
+
+		/* Temporarily set that cell to the color */
+		cell->n= 1;
+		bit_clearall(cell->bit, puz->ncolor);
+		bit_set(cell->bit, c);
+
+		/* Check all lines that cross the cell */
+		for (k= 0; k < puz->nset; k++)
+		{
+		    if (!VL && VE && VV)
+		    {
+			printf("E: %s %d: ",
+				CLUENAME(puz->type,k),cell->line[k]);
+			dump_line(stdout,puz,sol,k,cell->line[k]);
+		    }
+
+		    soln= left_solve(puz,sol,k,cell->line[k]);
+		    if (soln)
+		    {
+		    	/* It worked.  We learned nothing */
+			free(soln);
+		    }
+		    else
+		    {
+		    	/* Contradiction!  Eliminate that color possibility */
+			if (VS||VE)
+			    printf("%c: CELL (%d,%d) CAN'T BE COLOR %d\n",
+				VS?'S':'E', i,j, c);
+			hits++;
+			bit_clear(realbit,c);
+			realn--;
+			add_jobs(puz, cell);
+			if (realn == 1)
+			{
+			    puz->nsolved++;
+			    goto celldone;
+			}
+			break;	/* Don't check more directions on this cell */
+		    }
+		}
+	    }
+	    celldone:;
+
+	    /* Restore saved state (which may have been modified */
+	    memcpy(cell->bit, realbit, bitsize);
+	    cell->n= realn;
+	}
+    }
+
+    return hits;
 }
 
 
@@ -211,8 +305,7 @@ void guess_cell(Puzzle *puz, Solution *sol, Cell *cell, int c)
     puz->nsolved++;
 
     /* Put all crossing lines onto the job list */
-    for (k= 0; k < puz->nset; k++)
-    	add_job(puz, k, cell->line[k]);
+    add_jobs(puz, cell);
 }
 
 
@@ -228,8 +321,8 @@ int logic_solve(Puzzle *puz, Solution *sol)
     while (next_job(puz, &dir, &i))
     {
 	nlines++;
-	if (V1) printf("*** %s %d\n",CLUENAME(puz->type,dir), i);
-	if (V2) dump_line(stdout,puz,sol,dir,i);
+	if (VB) printf("*** %s %d\n",CLUENAME(puz->type,dir), i);
+	if (VB & VV) dump_line(stdout,puz,sol,dir,i);
 
 	if (!apply_lro(puz, sol, dir, i))
 	{
@@ -237,7 +330,7 @@ int logic_solve(Puzzle *puz, Solution *sol)
 	    return 0;
 	}
 
-	if (V3)
+	if (VJ)
 	{
 	    printf("CURRENT JOBS:\n");
 	    dump_jobs(stdout,puz);
@@ -268,20 +361,38 @@ int solve(Puzzle *puz, Solution *sol)
     {
 	if (logic_solve(puz,sol))
 	{
-	    /* Logical reasoning hit a dead end but not a contradiction */
-	    if (!maybacktrack || puz->nsolved == puz->ncells)
-	        /* Puzzle is done, or no guessing is allowed */
-		return 1;
+	    /* line solving hit a dead end but not a contradiction */
 
-	    if (V1) printf("STUCK\n");
-	    if (V3) print_solution(stdout,puz,sol);
+	    /* Stop if puzzle is done */
+	    if (puz->nsolved == puz->ncells) return 1;
+
+	    /* Look for logically markable squares that the LRO line solver
+	     * may have missed - if we find any resume line solving */
+	    if (tryharder && puz->history == NULL &&
+	    	try_everything(puz,sol)) continue;
+
+	    /* Stop if no guessing is allowed */
+	    if (!maybacktrack) return 1;
+
+	    if (VB) printf("B: STUCK\n");
+	    if (VB) print_solution(stdout,puz,sol);
 
 	    if (mayprobe)
 	    {
-		if (probing)
+		/* Probing algorithm */
+		if (!probing)
 		{
+		    /* Starting a new probe sequence - initialize stuff */
+		    if (VP) printf("P: STARTING PROBE SEQUENCE\n");
+		    i= j= c= 0;
+		    bestnleft= INT_MAX;
+		    probing= 1;
+		}
+		else
+		{
+		    /* Completed a probe - save it's rating and undo it */
 		    nleft= puz->ncells - puz->nsolved;
-		    if (V3) printf("PROBE ON (%d,%d)%d COMPLETE WITH "
+		    if (VP) printf("P: PROBE ON (%d,%d)%d COMPLETE WITH "
 		    	"%d CELLS LEFT\n", i,j,c,nleft);
 		    if (nleft < bestnleft)
 		    {
@@ -290,19 +401,13 @@ int solve(Puzzle *puz, Solution *sol)
 			bestj= j;
 			bestc= c;
 		    }
-		    if (V3) printf("UNDOING PROBE\n");
+		    if (VP) printf("P: UNDOING PROBE\n");
 		    undo(puz,sol,0);
-		    if (V3) dump_history(stdout, puz, 0);
+		    if (VP) dump_history(stdout, puz, 0);
 		    ++c;
 		}
-		else
-		{
-		    if (V2) printf("STARTING PROBE SEQUENCE\n");
-		    i= j= c= 0;
-		    bestnleft= INT_MAX;
-		    probing= 1;
-		}
 
+		/* Scan for the next cell to probe on */
 		for (; i < sol->n[0]; i++)
 		{
 		    for (; (cell= sol->line[0][i][j]) != NULL; j++)
@@ -315,38 +420,61 @@ int solve(Puzzle *puz, Solution *sol)
 			    {
 			    	if (may_be(cell, c))
 				{
-				    if (V2) printf("PROBING (%d,%d) COLOR %d\n",
+				    /* Found a cell - go probe on it */
+				    if (VP) printf("P: PROBING (%d,%d) COLOR %d\n",
 				    	i,j,c);
 				    probes++;
+				    merge_guess();
 				    guess_cell(puz,sol,cell,c);
 				    goto loop;
 				}
 			    }
 			    c= 0;
+			    /* Finished all probes on a cell.  Check if there
+			     * is anything that was a consequence of all
+			     * alternatives.  If so, set that as a fact,
+			     * cancel probing and proceed.
+			     */
+			    if (merge_check(puz))
+			    {
+				merges++;
+				probing= 0;
+				goto loop;
+			    }
 			}
 		    }
 		    j= 0;
 		}
 
-		/* Probe completed - guess on best */
+		/* completed probing all cells - select best as our guess */
 		probing= 0;
-		if (V2) print_solution(stdout,puz,sol);
-		if (V2) printf("PROBE SEQUENCE COMPLETE - CHOSING (%d,%d)%d\n",
+		if (bestnleft == INT_MAX)
+		{
+		    printf("ERROR: found no cells to prob on.  Puzzle done?\n");
+		    print_solution(stdout,puz,sol);
+		    printf("solved=%d cells=%d\n",puz->nsolved, puz->ncells);
+		    exit(1);
+		}
+
+		if (VP && VV) print_solution(stdout,puz,sol);
+		if (VP)
+		    printf("P: PROBE SEQUENCE COMPLETE - CHOSING (%d,%d)%d\n",
 			besti, bestj, bestc);
+
 		guess_cell(puz, sol, sol->line[0][besti][bestj], bestc);
 		guesses++;
 	    }
 	    else
 	    {
-		/* Make a guess, and proceed from there */
+		/* Old guessing algorithm.  Use heuristics to make a guess */
 		cell= pick_a_cell(puz, sol);
 		if (cell == NULL)
 		    return 0;
 
-		if (V1)
+		if (VB)
 		{
 		    int k;
-		    printf("GUESSING COLOR %d FOR CELL", c);
+		    printf("B: GUESSING COLOR %d FOR CELL", c);
 		    for (k= 0; k < puz->nset; k++)
 			printf(" %d",cell->line[k]);
 		    printf("\n");
@@ -359,16 +487,17 @@ int solve(Puzzle *puz, Solution *sol)
 	else
 	{
 	    /* We have hit a contradiction - try backtracking */
-	    if (V1) printf("STUCK ON CONTRADICTION\n");
+	    if (VB) printf("B: STUCK ON CONTRADICTION\n");
 
 	    probing= 0;		/* If we were probing, we aren't any more */
 	    guesses++;
 
+	    /* Back up to last guess point, and invert that guess */
 	    if (backtrack(puz,sol))
 		/* Nothing to backtrack to - puzzle has no solution */
 		return 0;
-	    if (V2) print_solution(stdout,puz,sol);
-	    if (V2) dump_history(stdout, puz, verbose > 2);
+	    if (VB) print_solution(stdout,puz,sol);
+	    if (VB) dump_history(stdout, puz, VV);
 	}
     loop:;
     }
