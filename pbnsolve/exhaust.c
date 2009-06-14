@@ -26,6 +26,8 @@
 
 #include "pbnsolve.h"
 
+extern bit_type *oldval;
+
 /* SCRATCHPAD - This is a two dimensional array of size (ncells x ncolor),
  * which stores information about a row or a column.  The array is initialized
  * to all zero. A zero means that it has not been shown that that cell can be
@@ -40,12 +42,12 @@
  * avoid redundant checks in the future. i=row, j=column
  */
 
-void mark_soln(Puzzle *puz, char *p, int *soln, int i, int j, int d)
+void mark_soln(Puzzle *puz, byte *p, line_t *soln, line_t i, line_t j, dir_t d)
 {
     /* d=0=D_ROW i=row index j=col index  KEEP i fixed, move j */
-    int jc= (d == D_ROW) ? i : j;
+    line_t jc= (d == D_ROW) ? i : j;
     Clue *clue= &(puz->clue[d][jc]);
-    int ic, ir;
+    line_t ic, ir;
 
     /* Start our index into the line one past the cell we did the check
      * on.  We aren't interested in marking cells to the left (above) the
@@ -93,21 +95,24 @@ void mark_soln(Puzzle *puz, char *p, int *soln, int i, int j, int d)
 
 int try_everything(Puzzle *puz, Solution *sol, int check)
 {
-    int i, j, c, k, realn;
-    int *soln;
+    line_t i, j;
+    color_t c, realn;
+    dir_t k;
+    line_t *soln;
     int hits= 0, setcell;
     Cell *cell;
     int bitsize= puz->colsize * sizeof(bit_type);
     bit_type *realbit= (bit_type *) malloc(bitsize);
-    char *rowpad, **colpad, *pad;
+    byte *rowpad, **colpad, *pad;
+    Hist *h;
 
     exh_runs++;
 
     /* Make the scratch pads - one for current row, and one for each column */
-    rowpad= (char *)calloc(puz->n[D_COL] * puz->ncolor, 1);
-    colpad= (char **)malloc(puz->n[D_COL] * sizeof(char *));
+    rowpad= (byte *)calloc(puz->n[D_COL] * puz->ncolor, 1);
+    colpad= (byte **)malloc(puz->n[D_COL] * sizeof(byte *));
     for (j= 0; j < puz->n[D_COL]; j++)
-    	colpad[j]= (char *)calloc(puz->n[D_ROW], puz->ncolor);
+    	colpad[j]= (byte *)calloc(puz->n[D_ROW], puz->ncolor);
 
     if (VE) printf("E: TRYING EVERYTHING check=%d\n",check);
     if (VE&&VV) print_solution(stdout, puz, sol);
@@ -160,7 +165,7 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 			dump_line(stdout,puz,sol,k,cell->line[k]);
 		    }
 
-		    soln= left_solve(puz,sol,k,cell->line[k]);
+		    soln= left_solve(puz,sol,k,cell->line[k], 0);
 		    if (soln)
 		    {
 		    	/* It worked.  We learned nothing about our cell,
@@ -187,8 +192,13 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 			}
 
 			/* If this is the first change we've made to the cell
-			 * put the old state on the history */
-			if (setcell == 0) add_hist2(puz,cell,realn,realbit, 0);
+			 * put the old state on the history, or if we aren't
+			 * keeping history, save the old state in oldval.
+			 */
+			if (setcell == 0 &&
+			    !(h= add_hist2(puz, cell, realn, realbit, 0)) )
+			    	bit_cpy(oldval, realbit, puz->ncolor);
+
 			setcell= 1;
 			hits++;
 
@@ -196,8 +206,6 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 			 * the cell later */
 			bit_clear(realbit,c);
 			realn--;
-
-			add_jobs(puz, cell, 0);
 
 			/* Unless we are checking, halt when we are done to
 			 * the last color.  Otherwise, we need to test that
@@ -217,6 +225,10 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 	    /* Restore the saved bits (possibly changed) to the cell */
 	    memcpy(cell->bit, realbit, bitsize);
 	    cell->n= realn;
+
+	    /* If we changed anything, add crossing jobs to job list */
+	    if (setcell > 0)
+		add_jobs(puz, sol, -1, cell, 0, h ? h->bit : oldval);
 	}
     }
 

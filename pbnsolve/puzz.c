@@ -33,7 +33,8 @@ Puzzle *new_puzzle()
 
 void free_puzzle(Puzzle *puz)
 {
-    int i,k;
+    line_t i,k;
+    color_t c;
     SolutionList *sl, *nsl;
 
     safefree(puz->source);
@@ -43,10 +44,10 @@ void free_puzzle(Puzzle *puz)
     safefree(puz->author);
     safefree(puz->copyright);
 
-    for (i= 0; i < puz->ncolor; i++)
+    for (c= 0; c < puz->ncolor; c++)
     {
-    	safefree(puz->color[i].name);
-    	safefree(puz->color[i].rgb);
+    	safefree(puz->color[c].name);
+    	safefree(puz->color[c].rgb);
     }
     safefree(puz->color);
 
@@ -74,9 +75,9 @@ void free_puzzle(Puzzle *puz)
  * Return it's index if found or -1 if not.
  */
 
-int find_color(Puzzle *puz, char *name)
+color_t find_color(Puzzle *puz, char *name)
 {
-    int i;
+    color_t i;
 
     for (i= 0; i < puz->ncolor; i++)
     	if (!strcasecmp(name, puz->color[i].name))
@@ -90,9 +91,9 @@ int find_color(Puzzle *puz, char *name)
  * definitions.  Return it's index if found or -1 if not.
  */
 
-int find_color_char(Puzzle *puz, char ch)
+color_t find_color_char(Puzzle *puz, char ch)
 {
-    int i;
+    color_t i;
 
     for (i= 0; i < puz->ncolor; i++)
     	if (ch == puz->color[i].ch)
@@ -107,9 +108,9 @@ int find_color_char(Puzzle *puz, char ch)
  * Return the index of the color.
  */
 
-int find_or_add_color(Puzzle *puz, char *name)
+color_t find_or_add_color(Puzzle *puz, char *name)
 {
-    int i;
+    color_t i;
     ColorDef *c;
 
     if ((i= find_color(puz,name)) >= 0)
@@ -139,7 +140,7 @@ int find_or_add_color(Puzzle *puz, char *name)
 
 void add_color(Puzzle *puz, char *name, char *rgb, char ch)
 {
-    int i= find_or_add_color(puz,name);
+    color_t i= find_or_add_color(puz,name);
     ColorDef *c= &puz->color[i];
 
     if (c->rgb != NULL) free(c->rgb);

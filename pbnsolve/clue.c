@@ -18,25 +18,31 @@
 /* MAKE_CLUES - Given a goal solution, generate corresponding puzzle clues.
  */
 
-void append_clue(Clue *clue, int length, int color)
+void append_clue(Clue *clue, line_t length, color_t color)
 {
     if (clue->n >= clue->s)
     {
     	clue->s += 8;
-	clue->length= (int *) realloc(clue->length, clue->s * sizeof(int));
-	clue->color= (int *) realloc(clue->color, clue->s * sizeof(int));
+	clue->length=
+	    (line_t *) realloc(clue->length, clue->s * sizeof(line_t));
+	clue->color=
+	    (color_t *) realloc(clue->color, clue->s * sizeof(color_t));
     }
     clue->length[clue->n]= length;
     clue->color[clue->n]= color;
     clue->n++;
 }
 
+
 void make_clues(Puzzle *puz, Solution *sol)
 {
     Clue *clue;
     Cell *cell;
-    int k, i, j, c;
-    int color, newcolor, count;
+    dir_t k;
+    line_t i, j;
+    color_t c;
+    color_t color, newcolor;
+    line_t count;
 
     if (puz->type != PT_GRID)
     	fail("Don't know how to generate clues for non-grid puzzles\n");
@@ -54,8 +60,8 @@ void make_clues(Puzzle *puz, Solution *sol)
 	    /* Allocate clue arrays for this line */
 	    clue->n= 0;
 	    clue->s= 8;		/* Initial size - may resize later */
-	    clue->length= (int *) malloc(clue->s * sizeof(int));
-	    clue->color= (int *) malloc(clue->s * sizeof(int));
+	    clue->length= (line_t *) malloc(clue->s * sizeof(line_t));
+	    clue->color= (color_t *) malloc(clue->s * sizeof(color_t));
 	    clue->jobindex= -1;
 	    clue->slack= -1;
 

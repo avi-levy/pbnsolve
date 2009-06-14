@@ -13,12 +13,21 @@
  * limitations under the License.
  */
 
-#include <limits.h>
 #include "pbnsolve.h"
+
+
+#ifdef LINEWATCH
+#define WL(k,i) (puz->clue[k][i].watch)
+#define WC(i,j) (puz->clue[0][i].watch || puz->clue[1][j].watch)
+#else
+#define WL(k,i) 0
+#define WC(i,j) 0
+#endif
+
 
 #ifdef GR_SIMPLE
 /* Simple version.  Just choose cells based on neighborlyness */
-int ratecell(Puzzle *puz, Solution *sol, int i, int j)
+int ratecell(Puzzle *puz, Solution *sol, line_t i, line_t j)
 {
     return 0;
 }
@@ -26,29 +35,29 @@ int ratecell(Puzzle *puz, Solution *sol, int i, int j)
 
 #ifdef GR_ADHOC
 /* First 'smart' version.  Prefer low slack, and low numbers of clues. */
-int ratecell(Puzzle *puz, Solution *sol, int i, int j)
+int ratecell(Puzzle *puz, Solution *sol, line_t i, line_t j)
 {
     int si= puz->clue[0][i].slack + 2*puz->clue[0][i].n;
-    int sj= puz->clue[0][i].slack + 2*puz->clue[0][i].n;
+    int sj= puz->clue[1][j].slack + 2*puz->clue[1][j].n;
     return (si < sj) ? 3*si+sj : 3*sj+si;
 }
 #endif
 
 #ifdef GR_MATH
 /* Mathematical version.  Prefer to work on rows with fewer solutions. */
-float ratecell(Puzzle *puz, Solution *sol, int i, int j)
+float ratecell(Puzzle *puz, Solution *sol, line_t i, line_t j)
 {
     float si= bicoln(puz->clue[0][i].slack + puz->clue[0][i].n,
 		puz->clue[0][i].n);
-    float sj= bicoln(puz->clue[0][i].slack + puz->clue[0][i].n,
-		puz->clue[0][i].n);
+    float sj= bicoln(puz->clue[1][j].slack + puz->clue[1][j].n,
+		puz->clue[1][j].n);
     return (si < sj) ? si : sj;
 }
 #endif
 
 /* Count neighbors of a cell which are either solved or edges */
 
-int count_neighbors(Solution *sol, int i, int j)
+int count_neighbors(Solution *sol, line_t i, line_t j)
 {
     int count= 0;
 
@@ -72,7 +81,8 @@ int count_neighbors(Solution *sol, int i, int j)
 
 Cell *pick_a_cell(Puzzle *puz, Solution *sol)
 {
-    int i, j, v, maxv;
+    line_t i, j;
+    int v, maxv;
     float s, minrate;
     Cell *cell, *favcell;
 
@@ -122,9 +132,9 @@ Cell *pick_a_cell(Puzzle *puz, Solution *sol)
 
 #ifdef GC_MAX
 /* Pick max color as guess */
-int pick_color(Puzzle *puz, Solution *sol, Cell *cell)
+color_t pick_color(Puzzle *puz, Solution *sol, Cell *cell)
 {
-    int c;
+    color_t c;
     for(c= puz->ncolor-1; c >= 0 && !may_be(cell,c); c--)
 	    ;
     if (c <= 0) fail("Picked a cell to guess on with one color\n");
@@ -134,9 +144,9 @@ int pick_color(Puzzle *puz, Solution *sol, Cell *cell)
 
 #ifdef GC_MIN
 /* Pick min color as guess */
-int pick_color(Puzzle *puz, Solution *sol, Cell *cell)
+color_t pick_color(Puzzle *puz, Solution *sol, Cell *cell)
 {
-    int c;
+    color_t c;
     for(c= 0; c < puz->ncolor && !may_be(cell,c); c++)
 	    ;
     if (c >= puz->ncolor-1) fail("Picked a cell to guess on with one color\n");
@@ -146,9 +156,9 @@ int pick_color(Puzzle *puz, Solution *sol, Cell *cell)
 
 #ifdef GC_RAND
 /* Pick random color as guess */
-int pick_color(Puzzle *puz, Solution *sol, Cell *cell)
+color_t pick_color(Puzzle *puz, Solution *sol, Cell *cell)
 {
-    int c, bestc, n= 0;
+    color_t c, bestc, n= 0;
 
     for(c= 0; c < puz->ncolor; c++)
 	if (may_be(cell,c))
@@ -164,11 +174,11 @@ int pick_color(Puzzle *puz, Solution *sol, Cell *cell)
 
 #ifdef GC_CONTRAST
 /* Pick pick a color different from the neighboring colors */
-int pick_color(Puzzle *puz, Solution *sol, Cell *cell)
+color_t pick_color(Puzzle *puz, Solution *sol, Cell *cell)
 {
-    int c, bestc, n, bestn= -1;
-    int i= cell->line[0];
-    int j= cell->line[1];
+    color_t c, bestc, n, bestn= -1;
+    line_t i= cell->line[0];
+    line_t j= cell->line[1];
 
     for(c= 0; c < puz->ncolor; c++)
 	if (may_be(cell,c))
@@ -214,12 +224,13 @@ int pick_color(Puzzle *puz, Solution *sol, Cell *cell)
  * Put all lines crossing the given cell on the job list.
  */
 
-void guess_cell(Puzzle *puz, Solution *sol, Cell *cell, int c)
+void guess_cell(Puzzle *puz, Solution *sol, Cell *cell, color_t c)
 {
-    int k;
+    dir_t k;
+    Hist *h;
 
     /* Save old cell in backtrack history */
-    add_hist(puz,cell,1);
+    h= add_hist(puz, cell, 1);
 
     /* Set just that one color */
     cell->n= 1;
@@ -228,7 +239,7 @@ void guess_cell(Puzzle *puz, Solution *sol, Cell *cell, int c)
     puz->nsolved++;
 
     /* Put all crossing lines onto the job list */
-    add_jobs(puz, cell, 0);
+    add_jobs(puz, sol, -1, cell, 0, h->bit);
 }
 
 
@@ -239,27 +250,33 @@ void guess_cell(Puzzle *puz, Solution *sol, Cell *cell, int c)
 
 int logic_solve(Puzzle *puz, Solution *sol, int contradicting)
 {
-    int dir, i, depth;
+    dir_t dir;
+    line_t i;
+    int depth;
 
     while (next_job(puz, &dir, &i, &depth))
     {
 	nlines++;
-	if (VB && !VC) printf("*** %s %d\n",CLUENAME(puz->type,dir), i);
-	if (VB & VV) dump_line(stdout,puz,sol,dir,i);
+	if ((VB && !VC) || WL(dir,i))
+	    printf("*** %s %d\n",CLUENAME(puz->type,dir), i);
+	if ((VB & VV) || WL(dir,i))
+	    dump_line(stdout,puz,sol,dir,i);
 
 	if (contradicting && depth >= contradepth)
 	{
 	    /* At max depth we just check if the line is solvable */
-	    int *soln= left_solve(puz, sol, dir, i);
+	    line_t *soln= left_solve(puz, sol, dir, i, 0);
 	    if (soln != NULL)
 	    {
-		if (VC) printf("C: %s %d OK AT DEPTH %d\n",
-		    cluename(puz->type,dir),i,depth);
+		if ((VC&&VV) || WL(dir,i))
+		    printf("C: %s %d OK AT DEPTH %d\n",
+			cluename(puz->type,dir),i,depth);
 	    }
 	    else
 	    {
-		if (VC) printf("C: %s %d FAILED AT DEPTH %d\n",
-		    cluename(puz->type,dir),i,depth);
+		if ((VC&&VV) || WL(dir,i))
+		    printf("C: %s %d FAILED AT DEPTH %d\n",
+			cluename(puz->type,dir),i,depth);
 		return 0;
 	    }
 	}
@@ -281,13 +298,16 @@ int logic_solve(Puzzle *puz, Solution *sol, int contradicting)
 
 /* Solve a puzzle.  Return 0 if a contradiction was found, 1 otherwise */
 
-
 int solve(Puzzle *puz, Solution *sol)
 {
     Cell *cell;
     int probing= 0, contradicting= 0;
-    int besti, bestj, bestc, bestnleft;
-    int i, j, c, nleft, neigh, stalled, rc;
+    line_t besti, bestj;
+    color_t bestc;
+    int bestnleft;
+    line_t i, j;
+    color_t c;
+    int nleft, neigh, stalled, rc;
 
     /* One color puzzles are already solved */
     if (puz->ncolor < 2)
@@ -335,8 +355,10 @@ int solve(Puzzle *puz, Solution *sol)
 	{
 	    /* Logical solving has stalled.  Try searching */
 
-	    if (VB) printf("B: STUCK - Line-by-line solving failed\n");
-	    if (VB) print_solution(stdout,puz,sol);
+	    if (VB)
+		printf("B: STUCK - Line-by-line solving failed\n");
+	    if (VB)
+		print_solution(stdout,puz,sol);
 
 	    if (maycontradict && !probing)
 	    {
@@ -344,14 +366,16 @@ int solve(Puzzle *puz, Solution *sol)
 		if (!contradicting)
 		{
 		    /* Starting a new probe sequence - initialize stuff */
-		    if (VC) printf("C: STARTING CONTRADICTION SEARCH\n");
+		    if (VC)
+			printf("C: **** STARTING CONTRADICTION SEARCH ****\n");
 		    i= j= c= 0;
 		    contradicting= 1;
 		}
 		else
 		{
 		    /* Failed to find a contradiction - undo it */
-		    if (VC) printf("C: NO CONTRADICTION ON (%d,%d)%d\n",i,j,c);
+		    if (VC)
+			printf("C: NO CONTRADICTION ON (%d,%d)%d\n",i,j,c);
 		    undo(puz,sol,0);
 		    c++;
 		}
@@ -369,9 +393,9 @@ int solve(Puzzle *puz, Solution *sol)
 			    if (may_be(cell, c))
 			    {
 				/* Found a cell - go do contradiction on it */
-				if (VC)
-				    printf("C: TRYING (%d,%d) COLOR %d\n",
-				    	i,j,c);
+				if (VC || WC(i,j))
+				    printf("C: ==== TRYING (%d,%d) "
+				    	"COLOR %d====\n", i,j,c);
 				contratests++;
 				guess_cell(puz,sol,cell,c);
 				goto loop;
@@ -397,7 +421,7 @@ int solve(Puzzle *puz, Solution *sol)
 		{
 		    /* Starting a new probe sequence - initialize stuff */
 		    if (VP) printf("P: STARTING PROBE SEQUENCE\n");
-		    i= j= c= 0;
+			i= j= c= 0;
 		    bestnleft= INT_MAX;
 		    probing= 1;
 		}
@@ -405,7 +429,8 @@ int solve(Puzzle *puz, Solution *sol)
 		{
 		    /* Completed a probe - save it's rating and undo it */
 		    nleft= puz->ncells - puz->nsolved;
-		    if (VP) printf("P: PROBE ON (%d,%d)%d COMPLETE WITH "
+		    if (VP || WC(i,j))
+			printf("P: PROBE ON (%d,%d)%d COMPLETE WITH "
 		    	"%d CELLS LEFT\n", i,j,c,nleft);
 		    if (nleft < bestnleft)
 		    {
@@ -434,7 +459,7 @@ int solve(Puzzle *puz, Solution *sol)
 			    	if (may_be(cell, c))
 				{
 				    /* Found a cell - go probe on it */
-				    if (VP)
+				    if (VP || WC(i,j))
 					printf("P: PROBING (%d,%d) COLOR %d\n",
 				    	i,j,c);
 				    probes++;
@@ -449,7 +474,7 @@ int solve(Puzzle *puz, Solution *sol)
 			     * alternatives.  If so, set that as a fact,
 			     * cancel probing and proceed.
 			     */
-			    if (merge_check(puz))
+			    if (merge_check(puz, sol))
 			    {
 				merges++;
 				probing= 0;
@@ -471,7 +496,7 @@ int solve(Puzzle *puz, Solution *sol)
 		}
 
 		if (VP && VV) print_solution(stdout,puz,sol);
-		if (VP)
+		if (VP || WC(besti,bestj))
 		    printf("P: PROBE SEQUENCE COMPLETE - CHOSING (%d,%d)%d\n",
 			besti, bestj, bestc);
 
@@ -486,9 +511,9 @@ int solve(Puzzle *puz, Solution *sol)
 		    return 0;
 
 		c= pick_color(puz,sol,cell);
-		if (VB)
+		if (VB || WC(cell->line[0],cell->line[1]))
 		{
-		    int k;
+		    dir_t k;
 		    printf("B: GUESSING COLOR %d FOR CELL", c);
 		    for (k= 0; k < puz->nset; k++)
 			printf(" %d",cell->line[k]);

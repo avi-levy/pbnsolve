@@ -69,4 +69,12 @@
  *   DEBUG_LEVEL == 3            Everything on.
  */
 
-#define DEBUG_LEVEL 2
+#define DEBUG_LEVEL 3
+
+/* LINE WATCH - If this flag is enabled, then you can give arguments like
+ * -wR12 to watch row 12 or -wC0 to watch column zero.  Lots of diagnostics
+ * about everything that happens to that row or column will be printed.
+ * Disabling this at compile time makes the program significantly faster.
+ */
+
+#define LINEWATCH

@@ -125,4 +125,13 @@
 			Name[_bit_i]=_bit_0s; \
 	}
 
+	/*
+	 * Copy bit string
+	 */
+#define	bit_cpy(Dest, Src, N) \
+	{	register _bit_i; \
+		for (_bit_i = bit_size(N)-1; _bit_i >= 0; _bit_i--) \
+			Dest[_bit_i]= Src[_bit_i]; \
+	}
+
 #endif

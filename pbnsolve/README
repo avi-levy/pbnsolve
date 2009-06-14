@@ -202,6 +202,7 @@ Command line options:
    -v<msgflags>
         Write debugging messages to standard output.  The <msgflags> are
 	flags that indicate what kinds of debugging messages should be output.
+	Some or all of these flags may be disabled by compile time options.
 	Recognized flags include:
 	
 	   A - Top level messages.
@@ -209,12 +210,19 @@ Command line options:
 	   E - Messages from exhaustive check done before starting to guess.
 	   G - Messages from guessing.
 	   J - Job management messages.
-	   L - Linesolver messages.
+	   L - Linesolver messages.  (disabled by default)
 	   M - Merging Messages.
 	   P - Probing Messages.
 	   U - Messages from Undo code used when backtracking.
 	   S - Cell State change messages.
 	   V - Extraverbosity when used with any of the above.
+
+   -w<dir><number>
+   	Print debugging messages relevant to a particular row or column.
+	You can say -wR12 for row twelve or -wC0 for column zero.  This option
+	is normally disabled by a compile time option, since constantly
+	checking if the current row needs logging slows things down.  You
+	can watch as many as 20 rows or columns.
 
 CGI Mode:
 ---------

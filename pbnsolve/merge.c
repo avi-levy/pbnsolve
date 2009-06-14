@@ -19,6 +19,8 @@ int merging= 0;		/* Are we currently merging? */
 int merge_no= -1;	/* Guess count.  If 0 we are on first guess for cell */
 MergeElem *merge_list= NULL; /* List of consequences of all guesses so far */
 
+extern bit_type *oldval;
+
 
 /* MERGE_GUESS() - Called when we make a new guess on a cell, including
  * before the first guess.  Updates our guess count.  Any cells in the list
@@ -57,6 +59,7 @@ void merge_guess()
 		    merge_no,ndrop,nleft);
 }
 
+
 /* MERGE_SET() - Each time we change a cell's list of possible color due as
  * a consequence of a probing guess, we call this.  It should be called before
  * the new values is stored in the cell.  We pass in a bitstring which has
@@ -66,7 +69,8 @@ void merge_guess()
 void merge_set(Puzzle *puz, Cell *cell, bit_type *bit)
 {
     MergeElem *m, *p;
-    int z, zero;
+    color_t z;
+    int zero;
 
     if (!merging) return;
 
@@ -142,10 +146,10 @@ void merge_set(Puzzle *puz, Cell *cell, bit_type *bit)
  * for probing on a new cell.
  */
 
-int merge_check(Puzzle *puz)
+int merge_check(Puzzle *puz, Solution *sol)
 {
     MergeElem *m, *n;
-    int z, d;
+    dir_t z;
     int found= 0;
 
     if (!merging) return 0;
@@ -168,7 +172,10 @@ int merge_check(Puzzle *puz)
 
 	    /* Set the new value in the cell */
 	    for (z= 0; z < puz->colsize; z++)
+	    {
+		oldval[z]= m->cell->bit[z];
 	        m->cell->bit[z]&= ~m->bit[z];
+	    }
 	    if (puz->ncolor <= 2)
 	        m->cell->n= 1;
 	    else
@@ -177,7 +184,7 @@ int merge_check(Puzzle *puz)
 	    if (m->cell->n == 1) puz->nsolved++;
 
             /* Add rows/columns containing this cell to the job list */
-	    add_jobs(puz, m->cell,0);
+	    add_jobs(puz, sol, -1, m->cell, 0, oldval);
 
 	    found= 1;
 	}

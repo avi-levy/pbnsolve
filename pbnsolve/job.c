@@ -15,6 +15,13 @@
 
 #include "pbnsolve.h"
 
+#ifdef LINEWATCH
+#define WL(clue) (clue).watch
+#define WC(cell) (puz->clue[0][(cell)->line[0]].watch || puz->clue[1][(cell)->line[1]].watch)
+#else
+#define WL(clue) 0
+#define WC(cell) 0
+#endif
 
 /* Remove all jobs from the queue */
 
@@ -105,7 +112,7 @@ void heapify_jobs(Puzzle *puz, int i)
 
 /* Add a job onto the job list */
 
-void add_job(Puzzle *puz, int k, int i, int depth, int bonus)
+void add_job(Puzzle *puz, dir_t k, line_t i, int depth, int bonus)
 {
     Job *job;
     int priority;
@@ -114,8 +121,9 @@ void add_job(Puzzle *puz, int k, int i, int depth, int bonus)
     /* Check if it is already on the job list */
     if ((j= puz->clue[k][i].jobindex) >= 0)
     {
-	if (VJ) printf(" J: JOB ON %s %d ALREADY ON JOBLIST\n",
-		CLUENAME(puz->type,k),i);
+	if (VJ || WL(puz->clue[k][i]))
+		printf(" J: JOB ON %s %d ALREADY ON JOBLIST\n",
+		    CLUENAME(puz->type,k),i);
 
 	/* Increase the priority of the job, bubbling it up the heap if
 	 * necessary
@@ -137,8 +145,9 @@ void add_job(Puzzle *puz, int k, int i, int depth, int bonus)
     priority= abs(puz->n[k]/2 - i) + 25*bonus - 10*depth;
 
 
-    if (VJ) printf(" J: JOB ON %s %d ADDED TO JOBLIST DEPTH %d PRIORITY %d\n",
-		CLUENAME(puz->type,k),i,depth,priority);
+    if (VJ || WL(puz->clue[k][i]))
+    	printf(" J: JOB ON %s %d ADDED TO JOBLIST DEPTH %d PRIORITY %d\n",
+	    CLUENAME(puz->type,k),i,depth,priority);
 
     /* Bubble things down until we find the spot to insert the new key */
     j= ++puz->njob;
@@ -158,31 +167,43 @@ void add_job(Puzzle *puz, int k, int i, int depth, int bonus)
 }
 
 
-/* Add jobs for all lines that cross the given cell */
-void add_jobs(Puzzle *puz, Cell *cell, int depth)
-{
-    int k;
-
-    if (maylinesolve)
-	for (k= 0; k < puz->nset; k++)
-            add_job(puz, k, cell->line[k], depth, 0);
-}
-
-/* Add jobs for all lines that cross the given cell.  This is for grid puzzles
- * only, alas.  Don't add direction 'except'.
+/* Add jobs for all lines that cross the given cell.  Don't add direction
+ * 'except'.  The cell should already have been updated with it's new value,
+ * and 'old' should give it's old value.
  */
 
-void add_jobs_edgebonus(Puzzle *puz, Solution *sol, int except, Cell *cell,
+void add_jobs(Puzzle *puz, Solution *sol, int except, Cell *cell,
 	int depth, bit_type *old)
 {
-    int k;
+    dir_t k;
+    line_t i, j;
+    int lwork, rwork;
 
     if (!maylinesolve) return;
+
     for (k= 0; k < puz->nset; k++)
 	if (k != except)
-	    add_job(puz, k, cell->line[k], depth,
-		newedge(puz, sol->line[k][cell->line[k]],
-		    cell->line[1-k], old, cell->bit));
+	{
+	    i= cell->line[k];
+	    j= cell->index[k];
+
+	    /* We only add the job only if either the saved left or right
+	     * solution for the line has been invalidated.
+	     */
+	    if (VL || WL(puz->clue[k][i]))
+		printf ("L: CHECK OLD SOLN FOR %s %d CELL %d\n",
+	    	CLUENAME(puz->type,k),i,j);
+	    lwork= left_check(&puz->clue[k][i], j, cell->bit);
+	    rwork= right_check(&puz->clue[k][i], j, cell->bit);
+	    if (lwork || rwork)
+	    {
+		add_job(puz, k, i, depth,
+		    newedge(puz, sol->line[k][i], j, old, cell->bit) );
+
+		if (!VJ && WL(puz->clue[k][i]))
+		    dump_jobs(stdout,puz);
+	    }
+	}
 }
 
 
@@ -190,7 +211,7 @@ void add_jobs_edgebonus(Puzzle *puz, Solution *sol, int except, Cell *cell,
  * Return 0 if there is no next job.
  */
 
-int next_job(Puzzle *puz, int *k, int *i, int *d)
+int next_job(Puzzle *puz, dir_t *k, line_t *i, int *d)
 {
     Job *first;
 
@@ -216,13 +237,13 @@ int next_job(Puzzle *puz, int *k, int *i, int *d)
 }
 
 
-
 /* Put every row and column on the job list.
  */
 
 void init_jobs(Puzzle *puz, Solution *sol)
 {
-    int i, j, k, d;
+    dir_t k;
+    line_t i, j, d;
 
     /* Delete any previously existing heap */
     if (puz->job != NULL) free(puz->job);
@@ -265,6 +286,7 @@ void init_jobs(Puzzle *puz, Solution *sol)
     	heapify_jobs(puz,i);
 }
 
+
 /* ENLARGE_HIST - Expand the history array.  Puzzle history can't be longer
  * then ncells*(ncolors-1) but we don't want to allocate that much memory if
  * we can avoid it.  So we don't allocate anything until the first guess.
@@ -281,24 +303,26 @@ void enlarge_hist(Puzzle *puz)
    puz->history= (Hist *)realloc(puz->history, HISTSIZE(puz)*puz->shist);
 }
 
+
 /* Add a cell to the history.  This should be called while the cell still
  * contains it's old values.  Branch is true if this is a branch point, that
  * is, not a consequence of what has gone before, but a random guess that might
  * be wrong.
  */
 
-void add_hist(Puzzle *puz, Cell *cell, int branch)
+Hist *add_hist(Puzzle *puz, Cell *cell, int branch)
 {
-    add_hist2(puz,cell,cell->n,cell->bit,branch);
+    return add_hist2(puz,cell,cell->n,cell->bit,branch);
 }
 
-void add_hist2(Puzzle *puz, Cell *cell, int oldn, bit_type *oldbit, int branch)
+
+Hist *add_hist2(Puzzle *puz, Cell *cell, color_t oldn, bit_type *oldbit, int branch)
 {
     Hist *h;
-    int z;
+    color_t z;
 
     /* We only start keeping a history after the first branch point */
-    if (puz->nhist == 0 && !branch) return;
+    if (puz->nhist == 0 && !branch) return NULL;
 
     /* Make sure we have memory for the new history element */
     if (puz->nhist >= puz->shist) enlarge_hist(puz);
@@ -312,6 +336,8 @@ void add_hist2(Puzzle *puz, Cell *cell, int oldn, bit_type *oldbit, int branch)
 
     for (z= 0; z < puz->colsize; z++)
     	h->bit[z]= oldbit[z];
+
+    return h;
 }
 
 
@@ -324,12 +350,36 @@ int undo(Puzzle *puz, Solution *sol, int leave_branch)
 {
     Hist *h;
     Clue *clue;
-    int z, k, oldn;
+    Cell **line;
+    dir_t k;
+    color_t z;
     int is_branch;
+    line_t i;
 
     while (puz->nhist > 0)
     {
 	h= HIST(puz, puz->nhist-1);
+
+	/* Invalidate any saved positions for lines crossing undone cell.
+	 * We can't just have the fact that nhist < stamp mean the line is
+	 * invalid, because we might backtrack and then advance past stamp
+	 * again before we recheck the line.
+	 */
+	for (k= 0; k < puz->nset; k++)
+	{
+
+	    i= h->cell->line[k];
+	    clue= &(puz->clue[k][i]);
+	    line= sol->line[k][i];
+
+	    if ((VL && VU) || WL(*clue))
+		printf("U: CHECK %s %d", CLUENAME(puz->type,k),i);
+
+	    left_undo(puz, clue, line, h->cell->index[k], h->bit);
+	    right_undo(puz, clue, line,  h->cell->index[k], h->bit);
+
+	    if ((VL && VU) || WL(*clue)) printf("\n");
+	}
 
 	is_branch= h->branch;
 
@@ -343,7 +393,7 @@ int undo(Puzzle *puz, Solution *sol, int leave_branch)
 	    for (z= 0; z < puz->colsize; z++)
 	    	h->cell->bit[z]= h->bit[z];
 
-	    if (VU)
+	    if (VU || WC(h->cell))
 	    {
 	    	printf("U: UNDOING CELL ");
 		for (k= 0; k < puz->nset; k++)
@@ -371,7 +421,8 @@ int undo(Puzzle *puz, Solution *sol, int leave_branch)
 int backtrack(Puzzle *puz, Solution *sol)
 {
     Hist *h;
-    int z, k, oldn;
+    color_t z, oldn;
+    dir_t k;
 
     if (VB) printf("B: BACKTRACKING TO LAST GUESS\n");
 
@@ -399,7 +450,7 @@ int backtrack(Puzzle *puz, Solution *sol)
 	count_cell(puz,h->cell);
     if (oldn == 1 && h->cell->n > 1) puz->nsolved--;
 
-    if (VB)
+    if (VB || WC(h->cell))
     {
 	printf("B: INVERTING BRANCH CELL ");
 	for (k= 0; k < puz->nset; k++)
@@ -426,7 +477,7 @@ int backtrack(Puzzle *puz, Solution *sol)
     if (maylinesolve)
     {
 	flush_jobs(puz);
-	add_jobs(puz,h->cell,0);
+	add_jobs(puz, sol, -1, h->cell, 0, h->bit);
     }
 
     backtracks++;
@@ -441,9 +492,9 @@ int backtrack(Puzzle *puz, Solution *sol)
  */
 
 #define noedge(a,b) (~((a) ^ (b)) & ((a) | (b)))
-int newedge(Puzzle *puz, Cell **line, int i, bit_type *old, bit_type *new)
+int newedge(Puzzle *puz, Cell **line, line_t i, bit_type *old, bit_type *new)
 {
-    int z;
+    color_t z;
     bit_type *n1, *n2;
     static bit_type one=1, zero= 0;
 

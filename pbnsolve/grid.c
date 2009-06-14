@@ -23,7 +23,7 @@
  * are more than 32 colors.
  */
 
-Cell *new_cell(int ncolor)
+Cell *new_cell(color_t ncolor)
 {
     Cell *cell= (Cell *)malloc(sizeof(Cell) + bit_size(ncolor) - bit_size(1));
     bit_clearall(cell->bit, ncolor)
@@ -39,7 +39,8 @@ Cell *new_cell(int ncolor)
 
 void init_solution(Puzzle *puz, Solution *sol, int set)
 {
-    int i, j, col;
+    line_t i, j;
+    color_t col;
     Cell *c;
 
     puz->nsolved= 0;
@@ -64,8 +65,8 @@ void init_solution(Puzzle *puz, Solution *sol, int set)
 		if (set)
 		    for (col= 0; col < puz->ncolor; col++)
 		    	bit_set(c->bit, col);
-		c->line[D_ROW]= i;
-		c->line[D_COL]= j;
+		c->line[D_ROW]= i; c->index[D_ROW]= j;
+		c->line[D_COL]= j; c->index[D_COL]= i;
 	    }
 	    sol->line[D_ROW][i][sol->n[D_COL]]= NULL;
 	}
@@ -100,7 +101,7 @@ void init_solution(Puzzle *puz, Solution *sol, int set)
 Solution *new_solution(Puzzle *puz)
 {
     Solution *sol= (Solution *)malloc(sizeof(Solution));
-    int i;
+    dir_t i;
 
     /* Copy size from puzzle */
     for (i= 0; i < puz->nset; i++)
@@ -118,7 +119,8 @@ Solution *new_solution(Puzzle *puz)
 
 void free_subsolution(Solution *sol)
 {
-    int i,j,k;
+    line_t i,j;
+    dir_t k;
 
     for (k= 0; k < sol->nset; k++)
     {
@@ -136,6 +138,7 @@ void free_subsolution(Solution *sol)
     }
 }
 
+
 /* FREE_SOLUTION - deallocate a solution data structure */
 
 void free_solution(Solution *sol)
@@ -143,6 +146,7 @@ void free_solution(Solution *sol)
     free_subsolution(sol);
     free(sol);
 }
+
 
 /* FREE_SOLUTIONLIST - deallocate a solution list data structure */
 
@@ -155,9 +159,9 @@ void free_solution_list(SolutionList *sl)
 
 /* COUNT_CELLS - return number of cells in the given line */
 
-int count_cells(Puzzle *puz, Solution *sol, int k, int i)
+line_t count_cells(Puzzle *puz, Solution *sol, dir_t k, line_t i)
 {
-    int ncell;
+    line_t ncell;
     Cell **cell;
 
     if (puz->type == PT_GRID)
@@ -174,11 +178,11 @@ int count_cells(Puzzle *puz, Solution *sol, int k, int i)
 
 /* Compute and return slack for the i-th line in direction k.  */
 
-int count_slack(Puzzle *puz, Solution *sol, int k, int i)
+line_t count_slack(Puzzle *puz, Solution *sol, dir_t k, line_t i)
 {
-    int fill= 0;
+    line_t fill= 0;
     Clue *clue= &puz->clue[k][i];
-    int j;
+    line_t j;
 
     if (clue->slack >= 0) return clue->slack;
 
@@ -190,16 +194,17 @@ int count_slack(Puzzle *puz, Solution *sol, int k, int i)
     return clue->slack= (count_cells(puz,sol,k,i) - fill);
 }
 
+
 /* Compute and return the number of cells that would obviously be painted
  * on a blank grid for the i-th line in direction k.
  */
 
-int count_paint(Puzzle *puz, Solution *sol, int k, int i)
+line_t count_paint(Puzzle *puz, Solution *sol, dir_t k, line_t i)
 {
-    int paint= 0;
+    line_t paint= 0;
     Clue *clue= &puz->clue[k][i];
-    int slack= count_slack(puz,sol,k,i);
-    int j;
+    line_t slack= count_slack(puz,sol,k,i);
+    line_t j;
 
     for (j= 0; j < clue->n; j++)
     	if (clue->length[j] > slack)
@@ -207,11 +212,12 @@ int count_paint(Puzzle *puz, Solution *sol, int k, int i)
     return paint;
 }
 
+
 /* update the color count in a cell based on the current bit string */
 
 void count_cell(Puzzle *puz, Cell *cell)
 {
-    int c;
+    color_t c;
 
     cell->n= 0;
     for (c= 0; c < puz->ncolor; c++)
@@ -226,7 +232,8 @@ void count_cell(Puzzle *puz, Cell *cell)
 char *solution_string(Puzzle *puz, Solution *sol)
 {
     Cell *cell;
-    int i,j,l;
+    line_t i,j;
+    color_t l;
     char *buf= (char *)malloc(sol->n[0] * (sol->n[1] + 1) + 2);
     char *str= buf;
 
@@ -260,19 +267,13 @@ char *solution_string(Puzzle *puz, Solution *sol)
 
 int check_nsolved(Puzzle *puz, Solution *sol)
 {
-    int i, j, cnt= 0;
+    line_t i, j;
+    int cnt= 0;
     Cell *cell;
 
     for (i= 0; i < sol->n[0]; i++)
     	for (j=0; (cell= sol->line[0][i][j]) != NULL; j++)
-	{
 	    cnt+= (cell->n == 1);
-if (cell->bit[0] > 3 || cell->bit[0] < 1)
-{
-printf("FAIL: %d %d bad bit %d\n",i,j,cell->bit[0]);
-exit(1);
-}
-	}
 
     return (puz->nsolved == cnt) ? -1 : cnt;
 }

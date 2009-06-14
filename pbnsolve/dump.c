@@ -15,14 +15,14 @@
 
 #include "pbnsolve.h"
 
-char *typename(int type)
+char *typename(byte type)
 {
     if (type == PT_GRID) return "grid";
     if (type == PT_TRID) return "triddler";
     return "strange";
 }
 
-char *cluename(int type, int k)
+char *cluename(byte type, dir_t k)
 {
     if (type == PT_TRID)
     {
@@ -38,7 +38,7 @@ char *cluename(int type, int k)
     return "strange";
 }
 
-char *CLUENAME(int type, int k)
+char *CLUENAME(byte type, dir_t k)
 {
     if (type == PT_TRID)
     {
@@ -61,7 +61,7 @@ char *CLUENAME(int type, int k)
 
 void dump_bits(FILE *fp, Puzzle *puz, bit_type *bit)
 {
-    int c;
+    color_t c;
     for (c= 0; c < puz->ncolor; c++)
     	if (bit_test(bit,c))
 	    putc(puz->color[c].ch, fp);
@@ -69,16 +69,16 @@ void dump_bits(FILE *fp, Puzzle *puz, bit_type *bit)
 	    putc(' ', fp);
 }
 
-void dump_line(FILE *fp, Puzzle *puz, Solution *sol, int k, int i)
+void dump_line(FILE *fp, Puzzle *puz, Solution *sol, dir_t k, line_t i)
 {
     Cell *cell;
-    int j;
+    line_t j;
 
+    fputc('|', fp);
     for (j= 0; (cell= sol->line[k][i][j]) != NULL; j++)
     {
-	fputs(" (",fp);
 	dump_bits(fp, puz, cell->bit);
-	fputc(')', fp);
+	fputc('|', fp);
     }
     fputc('\n', fp);
 }
@@ -87,8 +87,9 @@ void dump_line(FILE *fp, Puzzle *puz, Solution *sol, int k, int i)
 void dump_solution(FILE *fp, Puzzle *puz, Solution *sol, int once)
 {
     Cell *cell;
-    int k, i, j, l;
-    int max= once ? 1 : sol->nset;
+    dir_t k;
+    line_t i;
+    dir_t max= once ? 1 : sol->nset;
 
     for (k= 0; k < max; k++)
     {
@@ -101,10 +102,12 @@ void dump_solution(FILE *fp, Puzzle *puz, Solution *sol, int once)
     }
 }
 
+
 void print_solution(FILE *fp, Puzzle *puz, Solution *sol)
 {
     Cell *cell;
-    int i, j, l;
+    line_t i, j;
+    color_t l;
 
     for (i= 0; i < sol->n[0]; i++)
     {
@@ -124,7 +127,9 @@ void print_solution(FILE *fp, Puzzle *puz, Solution *sol)
 
 void dump_puzzle(FILE *fp, Puzzle *puz)
 {
-    int k,i,j;
+    color_t c;
+    dir_t k;
+    line_t i,j;
     SolutionList *sl;
     char *p;
 
@@ -146,13 +151,13 @@ void dump_puzzle(FILE *fp, Puzzle *puz)
     	puz->description ? puz->description : "UNKNOWN");
 
     fprintf(fp, "\nCOLORS %d (allocated for %d):\n",puz->ncolor,puz->scolor);
-    for (i= 0; i < puz->ncolor; i++)
+    for (c= 0; c < puz->ncolor; c++)
     {
         fprintf(fp,"%-3d: %s %s (%c)\n",
-		i,
-		puz->color[i].name,
-		puz->color[i].rgb,
-		puz->color[i].ch);
+		c,
+		puz->color[c].name,
+		puz->color[c].rgb,
+		puz->color[c].ch);
     }
 
     for (k= 0; k < puz->nset; k++)
@@ -211,10 +216,12 @@ void dump_jobs(FILE *fp, Puzzle *puz)
     if (puz->njob == 0) fprintf(fp,"No Jobs\n");
 }
 
+
 void dump_history(FILE *fp, Puzzle *puz, int full)
 {
     Hist *h;
-    int i,k;
+    int i;
+    dir_t k;
     int nbranch= 0;
 
     for (i= 0; i < puz->nhist; i++)
