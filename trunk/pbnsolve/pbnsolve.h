@@ -23,6 +23,13 @@
 #include "bitstring.h"
 #include "config.h"
 
+/* Types */
+typedef short line_t;	/* a row/column number */
+typedef char color_t;   /* a color number, an index into a color bit string */
+typedef char dir_t;     /* A direction */
+typedef char byte;	/* various small numbers */
+
+#define MAXLINE SHRT_MAX  /* Max value that can be stored in line_t */
 
 /* Puzzle solution - Representing a partial solution of a puzzle.
  *
@@ -42,7 +49,8 @@
  *
  *  sol->line[D_ROW][3][0] and sol->line[D_COL][0][3] will point to the same
  *  Cell object, the cell for column 0, row 3.  In that cell object,
- *  cell->line[D_ROW] is 3, and cell->line[D_COL] is 0.
+ *  (cell->line[D_ROW],cell->index[D_ROW]) is (3,0), and
+ *  (cell->line[D_COL],cell->index[D_COL]) is (0,3).
  *
  *  This somewhat redundant array structure is meant to generalize to things
  *  like triddlers more easily, and simplify a lot of the solver coding by
@@ -50,8 +58,9 @@
  */
 
 typedef struct {
-    short line[3];	/* coordinates of this cell */
-    short n;		/* Number of bits set in the bit string */
+    line_t line[3];	/* 2 or 3 line numbers of this cell */
+    line_t index[3];	/* 2 or 3 indexes of this cell in those lines */
+    color_t n;		/* Number of bits set in the bit string */
     bit_decl(bit,1);	/* bit string with 1 for each possible color */
 
     /* Do not define any fields after 'bit'.  When we allocate memory for this
@@ -65,9 +74,9 @@ typedef struct {
 #define may_be(cell,color)  bit_test(cell->bit,color)
 
 typedef struct {
-    int nset;		/* Number of directions 2 for grids, 3 for triddlers */
+    dir_t nset;		/* Number of directions 2 for grids, 3 for triddlers */
     Cell ***line[3];	/* 2 or 3 roots for the cell array */
-    int n[3];		/* Length of the line[] arrays */
+    line_t n[3];		/* Length of the line[] arrays */
 } Solution;
 
 
@@ -79,21 +88,35 @@ typedef struct {
 
 typedef struct solution_list {
     char *id;		/* ID string for solution (or NULL) */
-    int type;		/* Solution type (STYPE_* values) */
+    byte type;		/* Solution type (STYPE_* values) */
     char *note;		/* Any text describing the solution */
     Solution s;		/* The solution */
     struct solution_list *next;
 } SolutionList;
 
 
-/* Clue Structure - describes a row or column clue. */
+/* Clue Structure - describes a row or column clue.  We cache the last
+ * left-most and right-most solutions to this row, to use as a starting point
+ * the next time we need to find such solutions for the row.  These can't
+ * be used anymore if we backtrack past the point where they were created,
+ * so we remember the history array index at that time.  If we backtrack,
+ * we reset the timestamps to LINEMAX so they will continue to look invalid
+ * as we go forward again. */
 
 typedef struct {
-    int n,s;		/* Number of clues and size of array */
-    int *length;	/* Array of clue lengths */
-    int *color;		/* Array of clue colors (indexes into puz->color) */
+    line_t n,s;		/* Number of clues and size of array */
+    line_t *length;	/* Array of clue lengths */
+    color_t *color;	/* Array of clue colors (indexes into puz->color) */
     int jobindex;	/* Where is this clue on the job list? -1 if not. */
-    int slack;		/* Amount of slack in this clue */
+    line_t slack;	/* Amount of slack in this clue */
+    line_t *lpos,*rpos;	/* Last result from left_solve() and right_solve() */
+    line_t *lcov,*rcov;	/* Coverage arrays that go with lpos, and rpos */
+    line_t lbadb,rbadb;	/* Bad interval index in lpos,rpos. LINEMAX if none */
+    line_t lbadi,rbadi;	/* Cell index spoiling lpos,rcov.  LINEMAX if none  */
+    int lstamp,rstamp;	/* nhist value at time that lpos,rpos were computed */
+#ifdef LINEWATCH
+    byte watch;		/* True if we are watching this line */
+#endif
 } Clue;
 
 
@@ -106,21 +129,21 @@ typedef struct {
 } ColorDef;
 
 
-/* Linked list of lines that need working on */
+/* Element of heap of lines that need working on */
 
 typedef struct {
     int priority;	/* High number for more promissing jobs */
     int depth;		/* Used in contradiction search only */
-    int dir;		/* Direction of line that needs work (D_ROW/D_COL) */
-    int n;		/* Index of line that needs work */
+    byte dir;		/* Direction of line that needs work (D_ROW/D_COL) */
+    line_t n;		/* Index of line that needs work */
 } Job;
 
 /* History of things set, used for backtracking */
 
 typedef struct hist_list {
-    char branch;	/* Was this a branch point? */
+    byte branch;	/* Was this a branch point? */
     Cell *cell;		/* The cell that was set */
-    short n;		/* Old n value of cell */
+    color_t n;		/* Old n value of cell */
     bit_decl(bit,1);	/* Old bit string of cell */
     /* Do not define any fields after 'bit'.  When we allocate memory for this
      * data structure, we will actually be allocating more if we need longer
@@ -141,13 +164,14 @@ typedef struct hist_list {
 typedef struct merge_elem {
     struct merge_elem *next;	/* Link to next cell in list */
     Cell *cell;			/* The cell that was set */
-    short maxc;			/* Maximum guess number */
+    color_t maxc;		/* Maximum guess number */
     bit_decl(bit,1);	 	/* each eliminated color has a 1 bit */
     /* Do not define any fields after 'bit'.  When we allocate memory for this
      * data structure, we will actually be allocating more if we need longer
      * bitstrings.
      */
 } MergeElem;
+
 
 /* Puzzle definition - Describes a puzzle (not it's solution).
  *
@@ -179,12 +203,12 @@ typedef struct merge_elem {
 #define D_DOWN  2	/* Clues for \ lines that descend from left to right */
 
 typedef struct {
-    int type;		/* Puzzle type.  Some PT_ value */
-    int ncolor,scolor;	/* Number of colors used, size of color array */
-    int colsize;	/* Array size of color bit arrays */
-    int nset;		/* Number of directions 2 for grids, 3 for triddlers */
+    byte type;		/* Puzzle type.  Some PT_ value */
+    dir_t nset;		/* Number of directions 2 for grids, 3 for triddlers */
+    color_t ncolor,scolor; /* Number of colors used, size of color array */
+    color_t colsize;	/* Array size of color bit arrays */
     Clue *clue[3];	/* Arrays of clues (nset of which are used) */
-    int n[3];		/* Length of the clue[] arrays */
+    line_t n[3];	/* Length of the clue[] arrays */
     ColorDef *color;	/* Array of color definitions */
     char *source;
     char *id;
@@ -302,54 +326,57 @@ Puzzle *load_puzzle_stdin(int fmt, int index);
 
 Puzzle *new_puzzle(void);
 void free_puzzle(Puzzle *puz);
-int find_color(Puzzle *puz, char *name);
-int find_color_char(Puzzle *puz, char ch);
-int find_or_add_color(Puzzle *puz, char *name);
+color_t find_color(Puzzle *puz, char *name);
+color_t find_color_char(Puzzle *puz, char ch);
+color_t find_or_add_color(Puzzle *puz, char *name);
 void add_color(Puzzle *puz, char *name, char *rgb, char ch);
 
 /* dump.c functions */
-char *cluename(int type, int k);
-char *CLUENAME(int type, int k);
+char *cluename(byte type, dir_t k);
+char *CLUENAME(byte type, dir_t k);
 void dump_bits(FILE *fp, Puzzle *puz, bit_type *bits);
 void print_solution(FILE *fp, Puzzle *puz, Solution *sol);
-void dump_line(FILE *fp, Puzzle *puz, Solution *sol, int k, int i);
-void dump_solution(FILE *fp, Puzzle *puz, Solution *sol, int max);
+void dump_line(FILE *fp, Puzzle *puz, Solution *sol, byte k, line_t i);
+void dump_solution(FILE *fp, Puzzle *puz, Solution *sol, int once);
 void dump_puzzle(FILE *fp, Puzzle *puz);
 void dump_jobs(FILE *fp, Puzzle *puz);
 void dump_history(FILE *fp, Puzzle *puz, int full);
 
 /* grid.c functions */
-Cell *new_cell(int ncolor);
+Cell *new_cell(color_t ncolor);
 Solution *new_solution(Puzzle *puz);
 void init_solution(Puzzle *puz, Solution *sol, int set);
 void free_solution(Solution *sol);
 void free_solution_list(SolutionList *sl);
-int count_cells(Puzzle *puz, Solution *sol, int k, int i);
-int count_slack(Puzzle *puz, Solution *sol, int k, int i);
-int count_paint(Puzzle *puz, Solution *sol, int k, int i);
+line_t count_cells(Puzzle *puz, Solution *sol, dir_t k, line_t i);
+line_t count_slack(Puzzle *puz, Solution *sol, dir_t k, line_t i);
+line_t count_paint(Puzzle *puz, Solution *sol, dir_t k, line_t i);
 void count_cell(Puzzle *puz, Cell *cell);
 char *solution_string(Puzzle *puz, Solution *sol);
 int check_nsolved(Puzzle *puz, Solution *sol);
 
 /* line_lro.c functions */
 void init_line(Puzzle *puz);
-void dump_lro_solve(Puzzle *puz, Solution *sol, int k, int i, bit_type *col);
-int *left_solve(Puzzle *puz, Solution *sol, int k, int i);
-int *right_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell);
-bit_type *lro_solve(Puzzle *puz, Solution *sol, int k, int i, int ncell);
-int apply_lro(Puzzle *puz, Solution *sol, int k, int i, int depth);
+void dump_lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, bit_type *col);
+int left_check(Clue *clue, line_t i, bit_type *bit);
+int right_check(Clue *clue, line_t i, bit_type *bit);
+void left_undo(Puzzle *puz, Clue *clue, Cell **line, line_t i, bit_type *new);
+void right_undo(Puzzle *puz, Clue *clue, Cell **line, line_t i, bit_type *new);
+line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos);
+line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell, int savepos);
+bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell);
+int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth);
 
 /* job.c functions */
 void flush_jobs(Puzzle *puz);
 void init_jobs(Puzzle *puz, Solution *sol);
-int next_job(Puzzle *puz, int *k, int *i, int *depth);
-void add_job(Puzzle *puz, int k, int i, int depth, int bonus);
-void add_jobs(Puzzle *puz, Cell *cell, int depth);
-void add_jobs_edgebonus(Puzzle *puz, Solution *sol, int except, Cell *cell, int depth, bit_type *old);
-void add_hist(Puzzle *puz, Cell *cell, int branch);
-void add_hist2(Puzzle *puz, Cell *cell, int oldn, bit_type *oldbit, int branch);
+int next_job(Puzzle *puz, dir_t *k, line_t *i, int *depth);
+void add_job(Puzzle *puz, dir_t k, line_t i, int depth, int bonus);
+void add_jobs(Puzzle *puz, Solution *sol, int except, Cell *cell, int depth, bit_type *old);
+Hist *add_hist(Puzzle *puz, Cell *cell, int branch);
+Hist *add_hist2(Puzzle *puz, Cell *cell, color_t oldn, bit_type *oldbit, int branch);
 int backtrack(Puzzle *puz, Solution *sol);
-int newedge(Puzzle *puz, Cell **line, int i, bit_type *old, bit_type *new);
+int newedge(Puzzle *puz, Cell **line, line_t i, bit_type *old, bit_type *new);
 
 /* solve.c functions */
 extern int nlines, guesses, backtracks, probes, merges, contratests;
@@ -369,4 +396,4 @@ void make_clues(Puzzle *puz, Solution *sol);
 /* merge.c functions */
 void merge_guess(void);
 void merge_set(Puzzle *puz, Cell *cell, bit_type *bit);
-int merge_check(Puzzle *puz);
+int merge_check(Puzzle *puz, Solution *sol);

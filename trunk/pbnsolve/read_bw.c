@@ -58,16 +58,16 @@ char *sread_nonstr()
  * just a zero will be treated as a blank clue.
  */
 
-int read_bw_clues(Clue *clue, int nclue)
+int read_bw_clues(Clue *clue, line_t nclue)
 {
-    int i, n;
+    line_t i, n;
 
     for (i= 0; i < nclue; i++)
     {
     	clue[i].n= 0;
 	clue[i].s= 10;	/* Just a guess */
-	clue[i].length= (int *)malloc(clue[i].s*sizeof(int));
-	clue[i].color= (int *)malloc(clue[i].s*sizeof(int));
+	clue[i].length= (line_t *)malloc(clue[i].s * sizeof(line_t));
+	clue[i].color= (color_t *)malloc(clue[i].s * sizeof(color_t));
 	clue[i].jobindex= -1;
 	clue[i].slack= -1;
 
@@ -77,10 +77,10 @@ int read_bw_clues(Clue *clue, int nclue)
 	    if (clue[i].n >= clue[i].s)
 	    {
 		clue[i].s= clue[i].n + 10;
-	    	clue[i].length=
-		    (int *)realloc(clue[i].length, clue[i].s*sizeof(int));
-	    	clue[i].color=
-		    (int *)realloc(clue[i].color, clue[i].s*sizeof(int));
+	    	clue[i].length= (line_t *)
+		    realloc(clue[i].length, clue[i].s * sizeof(line_t));
+	    	clue[i].color= (color_t *)
+		    realloc(clue[i].color, clue[i].s * sizeof(color_t));
 	    }
 	    if (n == 0)
 	    {
@@ -208,7 +208,8 @@ Puzzle *load_non_puzzle()
 {
     Puzzle *puz= init_bw_puzzle();
     SolutionList *sl, *lastsl= NULL;
-    int d, n;
+    dir_t d;
+    int n;
     char *badfmt= "Input is not in NON format, as expected\n";
     char *word, *arg;
 
@@ -299,10 +300,11 @@ Puzzle *load_non_puzzle()
 Puzzle *load_lp_puzzle()
 {
     Puzzle *puz= init_bw_puzzle();
-    int d, i, j, n, c;
+    dir_t d;
+    line_t i, j, n, c;
     char *badfmt= "Input is not in LP format, as expected\n";
     char *word;
-    int nrow, ncol;
+    line_t nrow, ncol;
     Clue *clue;
 
     if ((word= sread_keyword()) == NULL) fail(badfmt);
@@ -341,8 +343,8 @@ Puzzle *load_lp_puzzle()
 	clue[i].s= n;
 	if (n > 0)
 	{
-	    clue[i].length= (int *)malloc(clue[i].s*sizeof(int));
-	    clue[i].color= (int *)malloc(clue[i].s*sizeof(int));
+	    clue[i].length= (line_t *)malloc(clue[i].s*sizeof(line_t));
+	    clue[i].color= (color_t *)malloc(clue[i].s*sizeof(color_t));
 	}
 	clue[i].jobindex= -1;
 	clue[i].slack= -1;

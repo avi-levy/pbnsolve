@@ -109,6 +109,7 @@ int setalg(char ch)
     return 1;
 }
 
+
 #define SN_NONE 0
 #define SN_START 1
 #define SN_INDEX 2
@@ -134,6 +135,11 @@ int main(int argc, char **argv)
     clock_t sclock, eclock;
 #ifdef DUMP_FILE
     FILE *dfp;
+#endif
+#ifdef LINEWATCH
+#define MAXWATCH 20
+    struct { dir_t dir; line_t i; } linewatch[MAXWATCH];
+    int nwatch= 0;
 #endif
 
 #ifdef NICENESS
@@ -297,6 +303,24 @@ int main(int argc, char **argv)
 			}
 			setformat= 1;
 			break;
+#ifdef LINEWATCH
+		    case 'w':
+			if (nwatch >= MAXWATCH) goto usage;
+			j++;
+		    	if (argv[i][j] == 'R' || argv[i][j] == 'r')
+			    linewatch[nwatch].dir= D_ROW;
+			else if (argv[i][j] == 'C' || argv[i][j] == 'c')
+			    linewatch[nwatch].dir= D_COL;
+			else
+			    goto usage;
+			linewatch[nwatch].i= 0;
+			for (j++; isdigit(argv[i][j]); j++)
+			   linewatch[nwatch].i= 10*linewatch[nwatch].i +
+			   	argv[i][j] - '0';
+			nwatch++;
+			j--;
+			break;
+#endif
 		    default:
 			goto usage;
 		    }
@@ -358,6 +382,20 @@ int main(int argc, char **argv)
 	else
 	    puz= load_puzzle_file(filename, fmt, pindex);
     }
+
+#ifdef LINEWATCH
+    /* Set the watch flags on the lines selected to be watched */
+    for (j= 0; j < nwatch; j++)
+    {
+	dir_t k= linewatch[j].dir;
+	i= linewatch[j].i;
+    	if (i < puz->n[k])
+	    puz->clue[k][i].watch= 1;
+	else
+	    printf("Can't watch %s %d - no such line\n",
+	    	cluename(puz->type,k), i);
+    }
+#endif
 
     /* preallocate some arrays used by the line solver */
     init_line(puz);

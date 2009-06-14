@@ -26,7 +26,8 @@
 
 void measure_xml_solution(Puzzle *puz, Solution *sol, char *p)
 {
-    int inrow, inbrace, r, c, c0;
+    int inrow, inbrace;
+    line_t r, c, c0;
     char *q;
 
     if (puz->type == PT_TRID)
@@ -82,7 +83,9 @@ void measure_xml_solution(Puzzle *puz, Solution *sol, char *p)
 
 void parse_xml_solutionimage(Puzzle *puz, Solution *sol, char *p)
 {
-    int i,j, color, inrow;
+    line_t i,j;
+    color_t color;
+    int inrow;
     Cell *cell;
     char *q;
 
@@ -189,8 +192,8 @@ void parse_xml_clue(xmlNode *root, Puzzle *puz, Clue *clue)
 
     /* Now allocate memory */
     clue->s= clue->n;
-    clue->length= (int *)malloc( clue->n * sizeof(int));
-    clue->color= (int *)malloc( clue->n * sizeof(int));
+    clue->length= (line_t *)malloc( clue->n * sizeof(line_t));
+    clue->color= (color_t *)malloc( clue->n * sizeof(color_t));
 
     /* Now load the clue values */
     for (node= root->children, i= 0; node != NULL; node= node->next, i++)
