@@ -1,18 +1,26 @@
-version 1.04 -
+version 1.04 - June 17, 2009
   - Added caching of old left/right solutions for each line, and reuse of them
     when possible to speed up line solving.  This adds a heck of a lot of
-    complexity, and only a little speed-up.
+    complexity, and only a little speed-up.  Might not have been that great
+    an idea.
   - Restructured main search algorithm to separate code for the different
-    search strategies instead of tangling them all together.
-  - Added contradiction checking algorithm.
+    search strategies instead of tangling them all together.  Mostly for
+    code readability and debuggability.
+  - Added contradiction checking algorithm.  Goal of this is to identify
+    puzzles that can be solved with limited lookahead, and are thus perhaps
+    more human solvable.  I'm not convinced yet that it really does that.  It
+    seems to make some puzzles solve faster, but others slower.  For now it's
+    still experimental and not on by default.
   - Differentiation of my old "int" variables into "line_t", "color_t" and
     "dir_t" typedefs.
   - Reduce amount of allocating and releasing of dynamic memory we do in
-    line_lro.c.
-  - Keep undo history in an array instead of a linked list.
+    line_lro.c.  This gives some small speed increases.
+  - Keep undo history in an array instead of a linked list.  Another trick
+    to cut back on dynamic memory allocation.
   - Sight efficience improvements to bit string operators, including adding
-    LIMITCOLORS mode.
-  - Watch individual lines with the -w command line option.
+    LIMITCOLORS mode.  More speed increases.
+  - Watch individual lines with the -w command line option.  A useful debugging
+    tool.
   - Revisions to job priority assignment.  If a color change to a cell creates
     edge, then the row that would cross the edge gets a boost to it's
     priority.
