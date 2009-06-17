@@ -48,7 +48,7 @@ void init_line(Puzzle *puz)
     /* Set a flag if the puzzle is multicolored.  If not, we can skip some
      * tests which will never be true and be just a bit more efficient.
      */
-    int multicolor= (puz->ncolor > 2);
+    multicolor= (puz->ncolor > 2);
 
     /* Find maximum number of numbers in any clue in any direction and
      * maximum length of a line
