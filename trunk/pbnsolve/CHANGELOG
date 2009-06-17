@@ -2,12 +2,17 @@ version 1.04 -
   - Added caching of old left/right solutions for each line, and reuse of them
     when possible to speed up line solving.  This adds a heck of a lot of
     complexity, and only a little speed-up.
+  - Restructured main search algorithm to separate code for the different
+    search strategies instead of tangling them all together.
   - Added contradiction checking algorithm.
   - Differentiation of my old "int" variables into "line_t", "color_t" and
     "dir_t" typedefs.
   - Reduce amount of allocating and releasing of dynamic memory we do in
     line_lro.c.
   - Keep undo history in an array instead of a linked list.
+  - Sight efficience improvements to bit string operators, including adding
+    LIMITCOLORS mode.
+  - Watch individual lines with the -w command line option.
   - Revisions to job priority assignment.  If a color change to a cell creates
     edge, then the row that would cross the edge gets a boost to it's
     priority.

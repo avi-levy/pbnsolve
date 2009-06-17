@@ -34,7 +34,7 @@ int checksolution= 0;
 int http= 0, terse= 0;
 
 int nlines, probes, guesses, backtracks, merges, exh_runs, exh_cells;
-int contratests;
+int contratests, contrafound;
 
 
 void timeout(int sig)
@@ -397,6 +397,9 @@ int main(int argc, char **argv)
     }
 #endif
 
+    /* Initialize the bitstring handling code for puzzles of our size */
+    fbit_init(puz->ncolor);
+
     /* preallocate some arrays used by the line solver */
     init_line(puz);
 
@@ -435,7 +438,8 @@ int main(int argc, char **argv)
     }
 
     /* Start from a blank grid if we didn't start from a saved game */
-    if (sol == NULL) sol= new_solution(puz);
+    if (sol == NULL)
+	sol= new_solution(puz);
 
     if (statistics) sclock= clock();
     init_jobs(puz, sol);
@@ -445,7 +449,7 @@ int main(int argc, char **argv)
 	dump_jobs(stdout,puz);
     }
     nlines= probes= guesses= backtracks= merges= exh_runs= exh_cells= 0;
-    contratests= 0;
+    contratests= contrafound= 0;
     while (1)
     {
 	rc= solve(puz,sol);
@@ -521,7 +525,7 @@ int main(int argc, char **argv)
 	else
 	    puts("<status>FAIL: Puzzle has no solution</status>");
 	if (guesses == 0 && probes == 0)
-	    puts("<logic>1</logic>");
+	    printf("<logic>%d</logic>\n", contrafound == 0 ? 1 : 2);
 	printf("<difficulty>%d</difficulty>\n",nlines*100/totallines);
 	puts("</data>");
     }
@@ -536,7 +540,15 @@ int main(int argc, char **argv)
 	    if (isunique)
 	    {
 		if (nlines <= totallines) printf("trivial ");
-		puts("unique logical");
+		if (guesses == 0 && probes == 0)
+		{
+		    if (contrafound > 0)
+			printf("unique depth-%d\n",contradepth);
+		    else
+			puts("unique logical");
+		}
+		else
+		    puts("unique");
 	    }
 	    else if (puz->found == NULL)
 	    {
@@ -567,7 +579,15 @@ int main(int argc, char **argv)
 	    if (isunique)
 	    {
 		/* Found a solution without ever having to guess */
-		printf("UNIQUE LOGICAL SOLUTION:\n");
+		if (guesses == 0 && probes == 0)
+		{
+		    if (contrafound > 0)
+			printf("UNIQUE DEPTH-%d SOLUTION:\n",contradepth);
+		    else
+			printf("UNIQUE LINE SOLUTION:\n");
+		}
+		else
+		    printf("UNIQUE SOLUTION:\n");
 		print_solution(stdout, puz, sol);
 	    }
 	    else if (puz->found == NULL)
@@ -611,8 +631,12 @@ int main(int argc, char **argv)
 	printf("Lines in Puzzle: %d\n",totallines);
 	printf("Lines Processed: %d (%d%%)\n",nlines,nlines/totallines*100);
 	if (exh_runs > 0 || mayexhaust)
-	    printf("Exhaustive Search: %d cells in %d passes\n",
-	    	exh_cells, exh_runs);
+	    printf("Exhaustive Search: %d cell%s in %d pass%s\n",
+	    	exh_cells, (exh_cells == 1) ?"":"s",
+		exh_runs, (exh_runs == 1) ?"":"es");
+	if (maycontradict)
+	    printf("Contradiction Testing: %d tests, %d found\n",
+	    	contratests, contrafound);
 	if (!mayprobe)
 	    printf("Backtracking: %d guesses, %d backtracks\n",
 	    	guesses,backtracks);
