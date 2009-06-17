@@ -371,6 +371,7 @@ int solve(Puzzle *puz, Solution *sol)
     while (1)
     {
 	/* Always start with logical solving */
+	if (VA) printf("A: LINE SOLVING\n");
 	rc= logic_solve(puz, sol, 0);
 
 	if (rc > 0) return 1;   /* Exit if the puzzle is complete */
@@ -379,15 +380,16 @@ int solve(Puzzle *puz, Solution *sol)
 	{
 	    /* Logical solving has stalled. */
 
-	    if (VB)
+	    if (VA)
 	    {
-		printf("B: STUCK - Line-by-line solving failed\n");
+		printf("A: STUCK - Line solving failed\n");
 		print_solution(stdout,puz,sol);
 	    }
 
 	    if (maycontradict)
 	    {
 		/* Try a depth-limited search for logical contradictions */
+		if (VA) printf("A: SEARCHING FOR CONTRADICTIONS\n");
 		rc= contradict(puz,sol);
 
 		if (rc > 0) return 1; /* puzzle complete - stop */
@@ -406,6 +408,7 @@ int solve(Puzzle *puz, Solution *sol)
 	    if (mayprobe)
 	    {
 		/* Do probing to find best guess to make */
+		if (VA) printf("A: PROBING\n");
 	    	rc= probe(puz, sol, &besti, &bestj, &bestc);
 
 		if (rc > 0)
@@ -415,6 +418,12 @@ int solve(Puzzle *puz, Solution *sol)
 
 		/* Otherwise, use the guess returned from the probe */
 		cell= sol->line[0][besti][bestj];
+		if (VA)
+		{
+		    printf("A: PROBING SELECTED ");
+		    print_coord(stdout,puz,cell);
+		    printf(" COLOR %d\n",bestc);
+		}
 	    }
 	    else
 	    {
@@ -424,13 +433,11 @@ int solve(Puzzle *puz, Solution *sol)
 		    return 0;
 
 		bestc= pick_color(puz,sol,cell);
-		if (VB || WC(cell->line[0],cell->line[1]))
+		if (VA || WC(cell->line[0],cell->line[1]))
 		{
-		    dir_t k;
-		    printf("B: GUESSING COLOR %d FOR CELL", bestc);
-		    for (k= 0; k < puz->nset; k++)
-			printf(" %d",cell->line[k]);
-		    printf("\n");
+		    printf("A: GUESSING SELECTED ");
+		    print_coord(stdout,puz,cell);
+		    printf(" COLOR %d\n",bestc);
 		}
 	    }
 	    guess_cell(puz, sol, cell, bestc);
@@ -439,7 +446,7 @@ int solve(Puzzle *puz, Solution *sol)
 	else
 	{
 	    /* We have hit a contradiction - try backtracking */
-	    if (VB) printf("B: STUCK ON CONTRADICTION\n");
+	    if (VA) printf("A: STUCK ON CONTRADICTION - BACKTRACKING\n");
 
 	    guesses++;
 
