@@ -1,6 +1,16 @@
 /* Some bitstring manipulation macros.  These were written long ago by
  * Paul A. Vixie and were posted to mod.sources.  I'm assuming they are
  * open source.
+ *
+ * We have added the fbit_* functions which take advantage of the fact that
+ * all bitstrings in pbnsolve are the same size and expect to find those
+ * sizes in fbit_n (number of bits) and fbit_size (number of ints to store
+ * those bits).  I tried caching _bit_intn(N) and _bit_mask(N) in arrays,
+ * but that actually made things slower.
+ *
+ * If the LIMITCOLORS is defined at compile time, then the macros
+ * are further optimized under the assumption that all bit strings fit in
+ * one long int.
  */
 
 /* bitstring.h - bit string manipulation macros
@@ -53,6 +63,16 @@
 			 */
 #define	_bit_1s		((bit_type)~0)
 
+/* Fast bit string stuff */
+
+#ifdef LIMITCOLORS
+#define fbit_n _bit_intsiz
+#define fbit_size 1
+#else
+extern int fbit_n;
+extern int fbit_size;
+#endif
+
 /*
  * (macros used internally)
  */
@@ -92,20 +112,35 @@
 	/*
 	 * is bit N of string Name set?
 	 */
+#ifdef LIMITCOLORS
+#define bit_test(Name,N) \
+	(*(Name) & _bit_mask(N))
+#else
 #define	bit_test(Name, N) \
 	((Name)[_bit_intn(N)] & _bit_mask(N))
+#endif
 
 	/*
 	 * set bit N of string Name
 	 */
+#ifdef LIMITCOLORS
+#define	bit_set(Name, N) \
+	{ *(Name) |= _bit_mask(N); }
+#else
 #define	bit_set(Name, N) \
 	{ (Name)[_bit_intn(N)] |= _bit_mask(N); }
+#endif
 
 	/*
 	 * clear bit N of string Name
 	 */
+#ifdef LIMITCOLORS
+#define	bit_clear(Name, N) \
+	{ *(Name) &= ~_bit_mask(N); }
+#else
 #define	bit_clear(Name, N) \
 	{ (Name)[_bit_intn(N)] &= ~_bit_mask(N); }
+#endif
 
 	/*
 	 * set bits 0..N in string Name
@@ -117,6 +152,20 @@
 	}
 
 	/*
+	 * set all bits in string Name
+	 */
+#ifdef LIMITCOLORS
+#define	fbit_setall(Name) \
+	{ *(Name)= _bit_1s; }
+#else
+#define	fbit_setall(Name) \
+	{	register _bit_i; \
+		for (_bit_i = fbit_size-1; _bit_i >= 0; _bit_i--) \
+			Name[_bit_i]=_bit_1s; \
+	}
+#endif
+
+	/*
 	 * clear bits 0..N in string Name
 	 */
 #define	bit_clearall(Name, N) \
@@ -126,6 +175,32 @@
 	}
 
 	/*
+	 * clear all bits in string Name
+	 */
+#ifdef LIMITCOLORS
+#define	fbit_clearall(Name) \
+	{ *(Name)= _bit_0s; }
+#else
+#define	fbit_clearall(Name) \
+	{	register _bit_i; \
+		for (_bit_i = fbit_size-1; _bit_i >= 0; _bit_i--) \
+			Name[_bit_i]=_bit_0s; \
+	}
+#endif
+
+	/*
+	 * set bit N of string Name to one, and all others to zero
+	 */
+
+#ifdef LIMITCOLORS
+#define fbit_setonly(Name, N) \
+	{ *(Name)= _bit_mask(N); }
+#else
+#define fbit_setonly(Name, N) \
+	{ fbit_clearall(Name); bit_set(Name, N); }
+#endif
+
+	/*
 	 * Copy bit string
 	 */
 #define	bit_cpy(Dest, Src, N) \
@@ -133,5 +208,16 @@
 		for (_bit_i = bit_size(N)-1; _bit_i >= 0; _bit_i--) \
 			Dest[_bit_i]= Src[_bit_i]; \
 	}
+
+#ifdef LIMITCOLORS
+#define	fbit_cpy(Dest, Src) \
+	{ *(Dest)= *(Src); }
+#else
+#define	fbit_cpy(Dest, Src) \
+	{	register _bit_i; \
+		for (_bit_i = fbit_size-1; _bit_i >= 0; _bit_i--) \
+			Dest[_bit_i]= Src[_bit_i]; \
+	}
+#endif
 
 #endif

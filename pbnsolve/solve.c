@@ -234,8 +234,7 @@ void guess_cell(Puzzle *puz, Solution *sol, Cell *cell, color_t c)
 
     /* Set just that one color */
     cell->n= 1;
-    bit_clearall(cell->bit,puz->ncolor);
-    bit_set(cell->bit,c);
+    fbit_setonly(cell->bit,c);
     puz->nsolved++;
 
     /* Put all crossing lines onto the job list */
@@ -243,12 +242,12 @@ void guess_cell(Puzzle *puz, Solution *sol, Cell *cell, color_t c)
 }
 
 
-/* Find all logical consequences from a current puzzle state.  There must be
- * at least one job on the job-list for this to get started.  Returns 0 if
- * a contradiction was found, one otherwise.
+/* Find logical consequences from a current puzzle state using the line solver.
+ * There must be at least one job on the job-list for this to get started.
+ * Returns 0 if a contradiction was found, one otherwise.
  */
 
-int logic_solve(Puzzle *puz, Solution *sol, int contradicting)
+int line_solve(Puzzle *puz, Solution *sol, int contradicting)
 {
     dir_t dir;
     line_t i;
@@ -259,7 +258,7 @@ int logic_solve(Puzzle *puz, Solution *sol, int contradicting)
 	nlines++;
 	if ((VB && !VC) || WL(dir,i))
 	    printf("*** %s %d\n",CLUENAME(puz->type,dir), i);
-	if ((VB & VV) || WL(dir,i))
+	if (VB || WL(dir,i))
 	    dump_line(stdout,puz,sol,dir,i);
 
 	if (contradicting && depth >= contradepth)
@@ -296,18 +295,71 @@ int logic_solve(Puzzle *puz, Solution *sol, int contradicting)
 }
 
 
+/* Find ALL logical consequences from a current puzzle state using the line
+ * solver and/or the exhaustive search algorithm.  Returns:
+ *
+ * negative = hit a contradiction - initial state was inconsistent
+ *        0 = stalled without completing the puzzle.  Will need to search.
+ *        1 = completely solved the puzzle.
+ */
+
+int logic_solve(Puzzle *puz, Solution *sol, int contradicting)
+{
+    int stalled;
+    int rc;
+
+    while (1)
+    {
+	if (maylinesolve)
+	{
+	    /* Run the line solver - exit if it finds a contradiction  */
+	    if (!line_solve(puz,sol,contradicting))
+		return -1;
+
+	    /* Check if puzzle is done */
+	    if (puz->nsolved == puz->ncells) return 1;
+
+	    /* If we are contradicting, don't do the exhaustive test.  Too expensive. */
+	    if (contradicting) return 0;
+
+	    /* If we have no other algorithm to try, we are stalled */
+	    if (!mayexhaust) return 0;
+	}
+
+	/* Look for logically markable squares that the LRO line solver
+	 * may have missed - if we find any resume line solving.  We
+	 * stop doing this once we have started searching, because it
+	 * doesn't generally speed us up, it's only done to make us more
+	 * sure about things being logically solvable.
+	 */
+
+	rc= try_everything(puz,sol, puz->nhist > 0 || puz->found != NULL);
+
+	if (rc > 0)
+	{
+	    /* Found some cells.  Exit if we are done */
+	    if (puz->nsolved == puz->ncells)
+		return 1;
+	    /* If we are not done, try line solving again */
+	}
+	else
+	{
+	   /* Found no cells, or hit a contradiction */
+	   return rc;
+	}
+    }
+}
+
+
 /* Solve a puzzle.  Return 0 if a contradiction was found, 1 otherwise */
 
 int solve(Puzzle *puz, Solution *sol)
 {
     Cell *cell;
-    int probing= 0, contradicting= 0;
     line_t besti, bestj;
     color_t bestc;
     int bestnleft;
-    line_t i, j;
-    color_t c;
-    int nleft, neigh, stalled, rc;
+    int rc;
 
     /* One color puzzles are already solved */
     if (puz->ncolor < 2)
@@ -318,94 +370,31 @@ int solve(Puzzle *puz, Solution *sol)
 
     while (1)
     {
-	if (!maylinesolve || (stalled= logic_solve(puz,sol,contradicting)))
+	/* Always start with logical solving */
+	rc= logic_solve(puz, sol, 0);
+
+	if (rc > 0) return 1;   /* Exit if the puzzle is complete */
+
+	if (rc == 0)
 	{
-	    /* line solving hit a dead end but not a contradiction */
-
-	    /* Stop if puzzle is done */
-	    if (puz->nsolved == puz->ncells) return 1;
-
-	    /* Look for logically markable squares that the LRO line solver
-	     * may have missed - if we find any resume line solving.  We
-	     * stop doing this once we have started searching, because it
-	     * doesn't generally speed us up, it's only done to make us more
-	     * sure about things being logically solvable.
-	     */
-	    if (mayexhaust)
-	    {
-	    	rc= try_everything(puz,sol,
-			puz->nhist > 0 || puz->found != NULL);
-
-		if (rc > 0)
-		{
-		    /* Found some cells.  If we are not done, try
-		     * line solving again */
-		    if (puz->nsolved == puz->ncells) return 1;
-		    continue;
-		}
-		else
-		{
-		   /* Found no cells, or hit a contradiction */
-		   stalled= (rc == 0);
-		}
-	    }
-    	}
-
-	if (stalled)
-	{
-	    /* Logical solving has stalled.  Try searching */
+	    /* Logical solving has stalled. */
 
 	    if (VB)
+	    {
 		printf("B: STUCK - Line-by-line solving failed\n");
-	    if (VB)
 		print_solution(stdout,puz,sol);
+	    }
 
-	    if (maycontradict && !probing)
+	    if (maycontradict)
 	    {
-		/* Contradiction search algorithm */
-		if (!contradicting)
-		{
-		    /* Starting a new probe sequence - initialize stuff */
-		    if (VC)
-			printf("C: **** STARTING CONTRADICTION SEARCH ****\n");
-		    i= j= c= 0;
-		    contradicting= 1;
-		}
-		else
-		{
-		    /* Failed to find a contradiction - undo it */
-		    if (VC)
-			printf("C: NO CONTRADICTION ON (%d,%d)%d\n",i,j,c);
-		    undo(puz,sol,0);
-		    c++;
-		}
+		/* Try a depth-limited search for logical contradictions */
+		rc= contradict(puz,sol);
 
-		/* Scan for the next cell to try a contradiction on */
-		for (; i < sol->n[0]; i++)
-		{
-		    for (; (cell= sol->line[0][i][j]) != NULL; j++)
-		    {
-			if (cell->n <= 1) continue;
-		    	if (count_neighbors(sol, i, j) < 1) continue;
+		if (rc > 0) return 1; /* puzzle complete - stop */
 
-			for (; c < puz->ncolor; c++)
-			{
-			    if (may_be(cell, c))
-			    {
-				/* Found a cell - go do contradiction on it */
-				if (VC || WC(i,j))
-				    printf("C: ==== TRYING (%d,%d) "
-				    	"COLOR %d====\n", i,j,c);
-				contratests++;
-				guess_cell(puz,sol,cell,c);
-				goto loop;
-			    }
-			}
-			c= 0;
-		    }
-		    j= 0;
-		}
-		contradicting= 0;
+		if (rc < 0) continue; /* found some - resume logic solving */
+
+		/* otherwise, try something else */
 	    }
 
 	    /* Stop if no guessing is allowed */
@@ -416,92 +405,16 @@ int solve(Puzzle *puz, Solution *sol)
 
 	    if (mayprobe)
 	    {
-		/* Probing algorithm */
-		if (!probing)
-		{
-		    /* Starting a new probe sequence - initialize stuff */
-		    if (VP) printf("P: STARTING PROBE SEQUENCE\n");
-			i= j= c= 0;
-		    bestnleft= INT_MAX;
-		    probing= 1;
-		}
-		else
-		{
-		    /* Completed a probe - save it's rating and undo it */
-		    nleft= puz->ncells - puz->nsolved;
-		    if (VP || WC(i,j))
-			printf("P: PROBE ON (%d,%d)%d COMPLETE WITH "
-		    	"%d CELLS LEFT\n", i,j,c,nleft);
-		    if (nleft < bestnleft)
-		    {
-		    	bestnleft= nleft;
-			besti= i;
-			bestj= j;
-			bestc= c;
-		    }
-		    if (VP) printf("P: UNDOING PROBE\n");
-		    undo(puz,sol,0);
-		    if (VP) dump_history(stdout, puz, 0);
-		    c++;
-		}
+		/* Do probing to find best guess to make */
+	    	rc= probe(puz, sol, &besti, &bestj, &bestc);
 
-		/* Scan for the next cell to probe on */
-		for (; i < sol->n[0]; i++)
-		{
-		    for (; (cell= sol->line[0][i][j]) != NULL; j++)
-		    {
-			if (cell->n < 2) continue;
-		    	neigh= count_neighbors(sol, i, j);
-			if (neigh >= 2)
-			{
-			    for (; c < puz->ncolor; c++)
-			    {
-			    	if (may_be(cell, c))
-				{
-				    /* Found a cell - go probe on it */
-				    if (VP || WC(i,j))
-					printf("P: PROBING (%d,%d) COLOR %d\n",
-				    	i,j,c);
-				    probes++;
-				    merge_guess();
-				    guess_cell(puz,sol,cell,c);
-				    goto loop;
-				}
-			    }
-			    c= 0;
-			    /* Finished all probes on a cell.  Check if there
-			     * is anything that was a consequence of all
-			     * alternatives.  If so, set that as a fact,
-			     * cancel probing and proceed.
-			     */
-			    if (merge_check(puz, sol))
-			    {
-				merges++;
-				probing= 0;
-				goto loop;
-			    }
-			}
-		    }
-		    j= 0;
-		}
+		if (rc > 0)
+		    return 1; /* Stop if accidentally completed the puzzle */
+		if (rc < 0)
+		    continue; /* Resume logic solving if found contradiction */
 
-		/* completed probing all cells - select best as our guess */
-		probing= 0;
-		if (bestnleft == INT_MAX)
-		{
-		    print_solution(stdout,puz,sol);
-		    printf("ERROR: found no cells to prob on.  Puzzle done?\n");
-		    printf("solved=%d cells=%d\n",puz->nsolved, puz->ncells);
-		    exit(1);
-		}
-
-		if (VP && VV) print_solution(stdout,puz,sol);
-		if (VP || WC(besti,bestj))
-		    printf("P: PROBE SEQUENCE COMPLETE - CHOSING (%d,%d)%d\n",
-			besti, bestj, bestc);
-
-		guess_cell(puz, sol, sol->line[0][besti][bestj], bestc);
-		guesses++;
+		/* Otherwise, use the guess returned from the probe */
+		cell= sol->line[0][besti][bestj];
 	    }
 	    else
 	    {
@@ -510,28 +423,24 @@ int solve(Puzzle *puz, Solution *sol)
 		if (cell == NULL)
 		    return 0;
 
-		c= pick_color(puz,sol,cell);
+		bestc= pick_color(puz,sol,cell);
 		if (VB || WC(cell->line[0],cell->line[1]))
 		{
 		    dir_t k;
-		    printf("B: GUESSING COLOR %d FOR CELL", c);
+		    printf("B: GUESSING COLOR %d FOR CELL", bestc);
 		    for (k= 0; k < puz->nset; k++)
 			printf(" %d",cell->line[k]);
 		    printf("\n");
 		}
-
-		guess_cell(puz, sol, cell, c);
-		guesses++;
 	    }
+	    guess_cell(puz, sol, cell, bestc);
+	    guesses++;
 	}
 	else
 	{
 	    /* We have hit a contradiction - try backtracking */
 	    if (VB) printf("B: STUCK ON CONTRADICTION\n");
 
-	    /* if we were probing or contradicting */
-	    /*contradicting= 0;	*/
-	    probing= 0;
 	    guesses++;
 
 	    /* Back up to last guess point, and invert that guess */
@@ -541,6 +450,5 @@ int solve(Puzzle *puz, Solution *sol)
 	    if (VB) print_solution(stdout,puz,sol);
 	    if (VB) dump_history(stdout, puz, VV);
 	}
-    loop:;
     }
 }

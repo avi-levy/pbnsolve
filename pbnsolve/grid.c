@@ -91,6 +91,8 @@ void init_solution(Puzzle *puz, Solution *sol, int set)
 
 	fail("Not yet implemented for triddlers!\n");
     }
+
+    sol->spiral= NULL;
 }
 
 
@@ -276,4 +278,51 @@ int check_nsolved(Puzzle *puz, Solution *sol)
 	    cnt+= (cell->n == 1);
 
     return (puz->nsolved == cnt) ? -1 : cnt;
+}
+
+
+/* Make an array that points to the cells of the puzzle in a spiral pattern
+ * from the outside in.  We use this for various algorithms that want to
+ * traverse all the squares of the grid, but want to hit the outer ones first.
+ * the array is NULL terminated.
+ */
+
+void make_spiral(Solution *sol)
+{
+    line_t i, j, n, s;
+    line_t nc= sol->n[D_COL];
+    line_t nr= sol->n[D_ROW];
+
+    sol->spiral= (Cell **)malloc((nr*nc + 1) * sizeof(Cell *));
+    sol->spiral[nr*nc]= NULL;
+
+    s= 0;
+    for (n= 0; 2*n < nr && 2*n < nc ; n++)
+    {
+	i= j= n;
+
+        for (; j < nc-n-1; j++)
+	    sol->spiral[s++]= sol->line[0][i][j];
+
+	if (2*n == nr-1)
+	{
+	    sol->spiral[s++]= sol->line[0][i][j];
+	    break;
+	}
+
+	for (; i < nr-n-1; i++)
+	    sol->spiral[s++]= sol->line[0][i][j];
+
+	if (2*n == nc-1)
+	{
+	    sol->spiral[s++]= sol->line[0][i][j];
+	    break;
+	}
+
+	for (; j > n; j--)
+	    sol->spiral[s++]= sol->line[0][i][j];
+
+	for (; i > n; i--)
+	    sol->spiral[s++]= sol->line[0][i][j];
+    }
 }

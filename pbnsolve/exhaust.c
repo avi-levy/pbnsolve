@@ -101,8 +101,7 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
     line_t *soln;
     int hits= 0, setcell;
     Cell *cell;
-    int bitsize= puz->colsize * sizeof(bit_type);
-    bit_type *realbit= (bit_type *) malloc(bitsize);
+    bit_type *realbit= (bit_type *) malloc(fbit_size * sizeof(bit_type));
     byte *rowpad, **colpad, *pad;
     Hist *h;
 
@@ -128,7 +127,7 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 	    if (cell->n == 1) continue;
 
 	    /* Save current settings of cell */
-	    memcpy(realbit, cell->bit, bitsize);
+	    fbit_cpy(realbit, cell->bit);
 	    realn= cell->n;
 	    setcell= 0;
 
@@ -143,8 +142,7 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 
 		/* Temporarily set that cell to the color */
 		cell->n= 1;
-		bit_clearall(cell->bit, puz->ncolor);
-		bit_set(cell->bit, c);
+		fbit_setonly(cell->bit, c);
 
 		/* Check all lines that cross the cell */
 		for (k= 0; k < puz->nset; k++)
@@ -197,7 +195,7 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 			 */
 			if (setcell == 0 &&
 			    !(h= add_hist2(puz, cell, realn, realbit, 0)) )
-			    	bit_cpy(oldval, realbit, puz->ncolor);
+			    	fbit_cpy(oldval, realbit);
 
 			setcell= 1;
 			hits++;
@@ -223,7 +221,7 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 	    celldone:;
 
 	    /* Restore the saved bits (possibly changed) to the cell */
-	    memcpy(cell->bit, realbit, bitsize);
+	    fbit_cpy(cell->bit, realbit);
 	    cell->n= realn;
 
 	    /* If we changed anything, add crossing jobs to job list */

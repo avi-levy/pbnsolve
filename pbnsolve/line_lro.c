@@ -15,9 +15,7 @@
 
 #include "pbnsolve.h"
 
-#define BGCOLOR 0
-
-#define colbit(i) (col+(puz->colsize*i))
+#define colbit(i) (col+(fbit_size*i))
 
 #ifdef LINEWATCH
 #define WL (clue->watch)
@@ -99,12 +97,10 @@ void init_line(Puzzle *puz)
     rpos= (line_t *)malloc((maxnclue + 1) * sizeof(line_t));
     gcov= (line_t *)malloc(maxnclue * sizeof(int));
 
-    /* Store size of bit arrays */
-    puz->colsize= bit_size(puz->ncolor);
     /* An extra color bit map for apply_lro */
-    oldval= (bit_type*)malloc(puz->colsize * sizeof(bit_type));
+    oldval= (bit_type*)malloc(fbit_size * sizeof(bit_type));
 
-    col= (bit_type *)malloc(maxdimension * puz->colsize * sizeof(bit_type));
+    col= (bit_type *)malloc(maxdimension * fbit_size * sizeof(bit_type));
     if (puz->ncolor > 2)
 	nbcolor= (line_t *)malloc(puz->ncolor * sizeof(line_t));
 }
@@ -156,7 +152,7 @@ int left_check(Clue *clue, line_t i, bit_type *bit)
 		    /* If we've set the cell non-white and it is left of
 		     * anything the block was previously covering, update cov */
 		    if ((clue->lcov[b] == -1 || i < clue->lcov[b]) &&
-		        (!multicolor || !bit_test(bit,BGCOLOR)))
+		        (!multicolor || !bit_bg(bit)))
 			    clue->lcov[b]= i;
 		    return clue->lbadb != MAXLINE;
 		}
@@ -168,7 +164,7 @@ int left_check(Clue *clue, line_t i, bit_type *bit)
 	    else
 	    {
 	    	/* changed cell is between block b and the next block */
-		if (bit_test(bit, BGCOLOR))
+		if (bit_bg(bit))
 		    return clue->lbadb != MAXLINE;
 		clue->lbadb= 2*b + 2;
 		if (D)
@@ -215,7 +211,7 @@ int right_check(Clue *clue, line_t i, bit_type *bit)
 		    /* If we've set the cell non-white and it is right of
 		     * anything the block was previously covering, update cov */
 		    if (i > clue->rcov[b] &&
-		        (!multicolor || !bit_test(bit,BGCOLOR)))
+		        (!multicolor || !bit_bg(bit)))
 			    clue->rcov[b]= i;
 		    return clue->rbadb != MAXLINE;
 		}
@@ -227,7 +223,7 @@ int right_check(Clue *clue, line_t i, bit_type *bit)
 	    else
 	    {
 	    	/* changed cell is in gap left of block b */
-		if (bit_test(bit, BGCOLOR))
+		if (bit_bg(bit))
 		    return clue->rbadb != MAXLINE;
 		clue->rbadb= 2*b;
 		if (D)
@@ -298,13 +294,13 @@ void left_undo(Puzzle *puz, Clue *clue, Cell **line, line_t i, bit_type *new)
 	    /* We were the leftmost can't-be-white cell of block b */
 
 	    /* If we still can't be white, no change is needed */
-	    if (multicolor && !bit_test(new,BGCOLOR)) return;
+	    if (multicolor && !bit_bg(new)) return;
 
 	    /* Scan right from the current position through the block,
 	     * looking for another can't-be-white cell */
 	    e= clue->lpos[b] + clue->length[b];
 	    for (i++; i < e; i++)
-	    	if (!may_be(line[i],BGCOLOR))
+	    	if (!may_be_bg(line[i]))
 		{
 		    /* Found one */
 		    clue->lcov[b]= i;
@@ -365,13 +361,13 @@ void right_undo(Puzzle *puz, Clue *clue, Cell **line, line_t i, bit_type *new)
 	    /* We were the rightmost can't-be-white cell of block b */
 
 	    /* If we still can't be white, no change is needed */
-	    if (multicolor && !bit_test(new,BGCOLOR)) return;
+	    if (multicolor && !bit_bg(new)) return;
 
 	    /* Scan left from the current position through the block,
 	     * looking for another can't-be-white cell */
 	    e= clue->rpos[b];
 	    for (i--; i >= e; i--)
-	    	if (!may_be(line[i],BGCOLOR))
+	    	if (!may_be_bg(line[i]))
 		{
 		    /* Found one */
 		    clue->rcov[b]= i;
@@ -454,7 +450,10 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 	 * time stamp in this case.
 	 */
 	if (D)
-	    printf("L: OLD STILL VALID -- REUSING\n");
+	{
+	    printf("L: OLD STILL VALID -- REUSING: ");
+	    dump_pos(stdout, pos, clue->length);
+	}
 	return pos;
     }
     else if (clue->lbadb % 2 == 0)
@@ -464,8 +463,11 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 	b= clue->lbadb/2;
 	state= BACKTRACK;
 	if (D)
+	{
 	    printf("L: OLD INVALID AT %d INT %d (GAP) "
-		"-- BACKTRACK FROM BLOCK %d\n", clue->lbadi,clue->lbadb,b);
+		"-- BACKTRACK FROM BLOCK %d\n   ", clue->lbadi,clue->lbadb,b);
+	    dump_pos(stdout, pos, clue->length);
+        }
     }
     else
     {
@@ -476,24 +478,31 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 		clue->lbadi,clue->lbadb);
 
 	if ((cov[b] < 0 || cov[b] > clue->lbadi) &&
-		(!multicolor || may_be(cell[clue->lbadi], BGCOLOR)))
+		(!multicolor || may_be_bg(cell[clue->lbadi])))
 	{
 	    /* Block covers nothing or covered cells are right of changed cell,
 	     * and changed cell can be background color, so we just skip past
 	     * it */
 	    pos[b]= clue->lbadi + 1;
+	    if (cell[pos[b]] == NULL)
+	    {
+		clue->lbadb= -1;
+		return NULL;
+	    }
 	    currcolor= clue->color[b];
 	    state= PLACEBLOCK;
 	    if (D)
-		printf("PLACEBLOCK %d AT %d\n",b,pos[b]);
+		printf("PLACEBLOCK %d AT %d\n   ",b,pos[b]);
 	}
 	else
 	{
 	    /* Block covers something, so we can't skip it ahead */
 	    state= BACKTRACK;
 	    if (D)
-		printf("BACKTRACK FROM BLOCK %d\n",b);
+		printf("BACKTRACK FROM BLOCK %d\n   ",b);
 	}
+	if (D)
+	    dump_pos(stdout, pos, clue->length);
     }
 
     backtracking= 0;
@@ -565,7 +574,7 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 		if (D)
 		    printf("L: POS %d BLOCKED\n",pos[b]);
 
-		if (multicolor && !may_be(cell[pos[b]], BGCOLOR))
+		if (multicolor && !may_be_bg(cell[pos[b]]))
 		{
 		    /* We hit a cell that must be some color other
 		     * than the color of the current block.  Only hope is to
@@ -598,7 +607,7 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 	    if (D)
 		printf("L: FIRST CELL OF %d PLACED AT %d\n",b,pos[b]);
 	    j= pos[b];
-	    cov[b]= (may_be(cell[j], BGCOLOR) ? -1 : j);
+	    cov[b]= (may_be_bg(cell[j]) ? -1 : j);
 	    for (j++; j - pos[b] < clue->length[b]; j++)
 	    {
 		if (D)
@@ -637,7 +646,7 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 		}
 
 		/* Update cov[b] */
-		if (cov[b] == -1 && !may_be(cell[j], BGCOLOR))
+		if (cov[b] == -1 && !may_be_bg(cell[j]))
 		    cov[b]= j;
 
 		if (D)
@@ -677,7 +686,7 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 		if (D)
 		    printf("L:  NEXTCOLOR=%d\n",nextcolor);
 
-		while (cell[j] != NULL && !may_be(cell[j], BGCOLOR) &&
+		while (cell[j] != NULL && !may_be_bg(cell[j]) &&
 			(nextcolor == BGCOLOR || !may_be(cell[j],nextcolor)))
 		{
 		    /* Next cell is wrong color, so try advancing the block one
@@ -695,7 +704,7 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 		    }
 		    /* All's OK - go ahead and advance the block */
 		    pos[b]++;
-		    if (cov[b] == -1 && !may_be(cell[j], BGCOLOR))
+		    if (cov[b] == -1 && !may_be_bg(cell[j]))
 			cov[b]= j;
 		    j++;
 		    if (D)
@@ -746,7 +755,7 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 		{
 		    if (D)
 			printf("L: CELL %d ",j);
-		    if (!may_be(cell[j], BGCOLOR))
+		    if (!may_be_bg(cell[j]))
 		    {
 			/* Check if we can cover the uncovered square by sliding
 			 * the last block right far enough to cover it
@@ -808,7 +817,7 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 		{
 		    if (D)
 			printf("L: ADVANCE HIT OBSTACLE ");
-		    if (cov[b] > 0 || (multicolor && !may_be(cell[j], BGCOLOR)))
+		    if (cov[b] > 0 || (multicolor && !may_be_bg(cell[j])))
 		    {
 			if (D)
 			    printf("- BACKTRACKING\n");
@@ -835,7 +844,7 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 		/* Check if we have covered anything.  If we have, we can
 		 * stop advancing
 		 */
-		if (!may_be(cell[j++], BGCOLOR))
+		if (!may_be_bg(cell[j++]))
 		{
 		    if (cov[b] == -1) cov[b]= j-1;
 		    if (D)
@@ -931,7 +940,10 @@ line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell,
     	/* Can reuse old solution completely.  Note that we don't update the
 	 * time stamp in this case.  */
 	if (D)
-	    printf("L: OLD STILL VALID -- REUSING\n");
+	{
+	    printf("L: OLD STILL VALID -- REUSING: ");
+	    dump_pos(stdout, pos, clue->length);
+	}
 	return pos;
     }
     else if (clue->rbadb % 2 == 0)
@@ -941,8 +953,11 @@ line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell,
 	b= clue->rbadb/2 - 1;
 	state= BACKTRACK;
 	if (D)
+	{
 	    printf("L: OLD INVALID AT %d INT %d (GAP) "
-		"-- BACKTRACK FROM BLOCK %d\n", clue->rbadi,clue->rbadb,b);
+		"-- BACKTRACK FROM BLOCK %d\n   ", clue->rbadi,clue->rbadb,b);
+	    dump_pos(stdout, pos, clue->length);
+	}
     }
     else
     {
@@ -953,24 +968,31 @@ line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell,
 		clue->rbadi,clue->rbadb);
 
 	if (cov[b] < clue->rbadi &&
-	    (!multicolor || may_be(cell[clue->rbadi], BGCOLOR)))
+	    (!multicolor || may_be_bg(cell[clue->rbadi])))
 	{
 	    /* Block covers nothing, or covered cells are left of changed cell,
 	     * and changed cell can be background color, so we just skip past
 	     * it */
 	    pos[b]= clue->rbadi - 1;
+	    if (pos[b] < 0)
+	    {
+		clue->rbadb= -1;
+		return NULL;
+	    }
 	    currcolor= clue->color[b];
 	    state= PLACEBLOCK;
 	    if (D)
-		printf("PLACEBLOCK %d AT %d\n",b,pos[b]);
+		printf("PLACEBLOCK %d AT %d\n   ",b,pos[b]);
 	}
 	else
 	{
 	    /* Block covers something, so we can't skip it ahead */
 	    state= BACKTRACK;
 	    if (D)
-		printf("BACKTRACK FROM BLOCK %d\n",b);
+		printf("BACKTRACK FROM BLOCK %d\n   ",b);
 	}
+	if (D)
+	    dump_pos(stdout, pos, clue->length);
     }
 
     backtracking= 0;
@@ -1042,7 +1064,7 @@ line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell,
 		if (D)
 		    printf("L: POS %d BLOCKED\n",pos[b]);
 
-		if (multicolor && !may_be(cell[pos[b]], BGCOLOR))
+		if (multicolor && !may_be_bg(cell[pos[b]]))
 		{
 		    /* We hit a cell that must be some color other
 		     * than the color of the current block.  Only hope is to
@@ -1075,7 +1097,7 @@ line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell,
 	    if (D)
 		printf("L: FIRST CELL OF %d PLACED AT %d\n",b,pos[b]);
 	    j= pos[b];
-	    cov[b]= (may_be(cell[j], BGCOLOR) ? -1 : j);
+	    cov[b]= (may_be_bg(cell[j]) ? -1 : j);
 	    for (j--; pos[b] - j < clue->length[b]; j--)
 	    {
 		if (D)
@@ -1114,7 +1136,7 @@ line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell,
 		}
 
 		/* Update cov[b] */
-		if (cov[b] == -1 && !may_be(cell[j], BGCOLOR))
+		if (cov[b] == -1 && !may_be_bg(cell[j]))
 		    cov[b]= j;
 
 		if (D)
@@ -1154,7 +1176,7 @@ line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell,
 		if (D)
 		    printf("L:  NEXTCOLOR=%d\n",nextcolor);
 
-		while (j >= 0 && !may_be(cell[j], BGCOLOR) &&
+		while (j >= 0 && !may_be_bg(cell[j]) &&
 			(nextcolor == BGCOLOR || !may_be(cell[j],nextcolor)))
 		{
 		    /* Next cell is wrong color, so try advancing the block one
@@ -1172,7 +1194,7 @@ line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell,
 		    }
 		    /* All's OK - go ahead and advance the block */
 		    pos[b]--;
-		    if (cov[b] == -1 && !may_be(cell[j], BGCOLOR))
+		    if (cov[b] == -1 && !may_be_bg(cell[j]))
 			cov[b]= j;
 		    j--;
 		    if (D)
@@ -1223,7 +1245,7 @@ line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell,
 		{
 		    if (D)
 			printf("L: CELL %d ",j);
-		    if (!may_be(cell[j], BGCOLOR))
+		    if (!may_be_bg(cell[j]))
 		    {
 			/* Check if we can cover the uncovered square by sliding
 			 * the last block right far enough to cover it
@@ -1285,7 +1307,7 @@ line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell,
 		{
 		    if (D)
 			printf("L: ADVANCE HIT OBSTACLE ");
-		    if (cov[b] > 0 || (multicolor && !may_be(cell[j], BGCOLOR)))
+		    if (cov[b] > 0 || (multicolor && !may_be_bg(cell[j])))
 		    {
 			if (D)
 			    printf("- BACKTRACKING\n");
@@ -1312,7 +1334,7 @@ line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell,
 		/* Check if we have covered anything.  If we have, we can
 		 * stop advancing
 		 */
-		if (!may_be(cell[j--], BGCOLOR))
+		if (!may_be_bg(cell[j--]))
 		{
 		    if (cov[b] == -1) cov[b]= j+1;
 		    if (D)
@@ -1391,26 +1413,24 @@ bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell)
 	printf("-----------------RIGHT-----------------\n");
     right= right_solve(puz, sol, k, i, ncell, 1);
     if (right == NULL)
-    	fail("Left solution but no right solution for line %d direction %d\n",
-		i, k);
+    	fail("Left solution but no right solution for %s %d\n",
+		cluename(puz->type,k), i);
 
     if (D)
     {
 	line_t i;
 
-	printf("L: LEFT SOLUTION:\n");
-	for (i= 0; left[i] >= 0; i++)
-	    printf("Block %d at %d\n",i, left[i]);
+	printf("L: LEFT  SOLUTION: ");
+	dump_pos(stdout, left, clue->length);
 	printf("L: RIGHT SOLUTION:\n");
-	for (i= 0; right[i] >= 0; i++)
-	       printf("Block %d at %d\n",i, right[i]);
+	dump_pos(stdout, right, clue->length);
     }
 
     /* col is the array of bitstrings used to return values.  The i-th bit
-     * string starts at col[puz->colsize*i] and bits will be set to 1 for
+     * string starts at col[fbit_size*i] and bits will be set to 1 for
      * each color that cell i could be.
      */
-    memset(col, 0, ncell * puz->colsize * sizeof(bit_type));
+    memset(col, 0, ncell * fbit_size * sizeof(bit_type));
 
     /* nbcolor is the number of blocks of each color we could be in */
     if (multicolor)
@@ -1463,7 +1483,7 @@ bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell)
 	else
 	{
 	    /* Two color puzzles */
-	    bit_setall(colbit(j),2);
+	    fbit_setall(colbit(j));
 	}
     }
 
@@ -1505,14 +1525,14 @@ int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth)
     for (j= 0; j < ncell; j++)
     {
 	/* Is the new value different from the old value? */
-	for (z= 0; z < puz->colsize; z++)
+	for (z= 0; z < fbit_size; z++)
 	{
 	    oldval[z]= cell[j]->bit[z];
 	    new= (colbit(j)[z] & cell[j]->bit[z]);
 	    if (cell[j]->bit[z] != new)
 	    {
 		/* Do probe merging (maybe) */
-		merge_set(puz, cell[j], colbit(j));
+		if (merging) merge_set(puz, cell[j], colbit(j));
 
 		if (VS || DW(k,i))
 		{
@@ -1528,7 +1548,7 @@ int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth)
 
 		/* Copy new values into grid */
 		cell[j]->bit[z] = new;
-		for (z++; z < puz->colsize; z++)
+		for (z++; z < fbit_size; z++)
 		{
 		    oldval[z]= cell[j]->bit[z];
 		    cell[j]->bit[z]&= colbit(j)[z];

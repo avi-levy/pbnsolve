@@ -32,8 +32,6 @@ void merge_guess()
     MergeElem *m, *n, *p= NULL;
     int ndrop= 0, nleft= 0;
 
-    if (!mergeprobe) return;
-
     for (m= merge_list; m != NULL; m= n)
     {
 	n= m->next;
@@ -60,7 +58,7 @@ void merge_guess()
 }
 
 
-/* MERGE_SET() - Each time we change a cell's list of possible color due as
+/* MERGE_SET() - Each time we change a cell's list of possible color as
  * a consequence of a probing guess, we call this.  It should be called before
  * the new values is stored in the cell.  We pass in a bitstring which has
  * a zero for every color that has been eliminated.
@@ -71,8 +69,6 @@ void merge_set(Puzzle *puz, Cell *cell, bit_type *bit)
     MergeElem *m, *p;
     color_t z;
     int zero;
-
-    if (!merging) return;
 
     /* Scan existing merge list, to see if we have an entry for this cell */
     for (m= merge_list, p= NULL;
@@ -87,11 +83,15 @@ void merge_set(Puzzle *puz, Cell *cell, bit_type *bit)
     	if (merge_no > 0) return;
 
 	/* Otherwise, make a new merge list entry */
-	m= (MergeElem *)malloc(sizeof(MergeElem) + puz->colsize - bit_size(1));
+	m= (MergeElem *)malloc(sizeof(MergeElem) + fbit_size - bit_size(1));
 	m->cell= cell;
 	m->maxc= merge_no;
-	for (z= 0; z < puz->colsize; z++)
+#ifdef LIMITCOLORS
+	m->bit[0]= cell->bit[0] & ~bit[0];
+#else
+	for (z= 0; z < fbit_size; z++)
 	    m->bit[z]= cell->bit[z] & ~bit[z];
+#endif
 	m->next= merge_list;
 	merge_list= m;
 	if (VM)
@@ -105,14 +105,19 @@ void merge_set(Puzzle *puz, Cell *cell, bit_type *bit)
     }
 
     /* If the cell is on the list, intersect the changes */
+#ifdef LIMITCOLORS
+    m->bit[0]&= cell->bit[0] & ~bit[0];
+    if (m->bit[0] == 0)
+#else
     zero= 1;
-    for (z= 0; z < puz->colsize; z++)
+    for (z= 0; z < fbit_size; z++)
     {
     	m->bit[z]&= cell->bit[z] & ~bit[z];
 	if (m->bit[z]) zero= 0;
 
     }
     if (zero)
+#endif
     {
     	/* No intersection - delete the node */
 	if (VM) printf("M: DROPPING MERGE CELL (%d,%d)\n",
@@ -152,8 +157,6 @@ int merge_check(Puzzle *puz, Solution *sol)
     dir_t z;
     int found= 0;
 
-    if (!merging) return 0;
-
     for (m= merge_list; m != NULL; m= n)
     {
 	n= m->next;
@@ -171,11 +174,16 @@ int merge_check(Puzzle *puz, Solution *sol)
 	    add_hist(puz, m->cell, 0);
 
 	    /* Set the new value in the cell */
-	    for (z= 0; z < puz->colsize; z++)
+#ifdef LIMITCOLORS
+	    oldval[0]= m->cell->bit[0];
+	    m->cell->bit[0]&= ~m->bit[0];
+#else
+	    for (z= 0; z < fbit_size; z++)
 	    {
 		oldval[z]= m->cell->bit[z];
 	        m->cell->bit[z]&= ~m->bit[z];
 	    }
+#endif
 	    if (puz->ncolor <= 2)
 	        m->cell->n= 1;
 	    else

@@ -12,7 +12,8 @@ CFLAGS= -g
 #CFLAGS= -O2 -I/usr/include/libxml2
 
 OBJ= pbnsolve.o read.o read_xml.o read_bw.o read_grid.o dump.o puzz.o grid.o \
-	line_lro.o job.o solve.o gamma.o http.o clue.o merge.o exhaust.o
+	line_lro.o job.o solve.o probe.o contradict.o gamma.o http.o clue.o \
+	merge.o exhaust.o bit.o
 
 pbnsolve: $(OBJ)
 	cc -o pbnsolve $(CFLAGS) $(OBJ) $(LIB)
@@ -24,9 +25,12 @@ puzz.o: puzz.c pbnsolve.h bitstring.h config.h
 line_lro.o: line_lro.c pbnsolve.h bitstring.h config.h
 job.o: job.c pbnsolve.h bitstring.h config.h
 solve.o: solve.c pbnsolve.h bitstring.h config.h
+probe.o: probe.c pbnsolve.h bitstring.h config.h
+contradict.o: contradict.c pbnsolve.h bitstring.h config.h
 exhaust.o: exhaust.c pbnsolve.h bitstring.h config.h
 clue.o: clue.c pbnsolve.h bitstring.h config.h
 merge.o: merge.c bitstring.h pbnsolve.h config.h
+bit.o: bit.c bitstring.h config.h
 gamma.o: gamma.c config.h
 http.o: http.c pbnsolve.h config.h
 read.o: read.c pbnsolve.h read.h bitstring.h config.h
@@ -46,7 +50,7 @@ TARBALL= README CHANGELOG pbnsolve.html pbn_fmt.html Makefile \
 	bitstring.h config.h pbnsolve.h read.h read_bw.c read_grid.c \
 	pbnsolve.c puzz.c read.c read_xml.c solve.c testgamma.c \
 	clue.c dump.c gamma.c grid.c http.c job.c line_lro.c merge.c \
-	exhaust.c testline.c 
+	exhaust.c testline.c probe.c contradict.c bit.c
 
 pbnsolve.tgz: $(TARBALL)
 	tar cvzf pbnsolve.tgz $(TARBALL)

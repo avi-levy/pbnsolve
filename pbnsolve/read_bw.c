@@ -70,6 +70,9 @@ int read_bw_clues(Clue *clue, line_t nclue)
 	clue[i].color= (color_t *)malloc(clue[i].s * sizeof(color_t));
 	clue[i].jobindex= -1;
 	clue[i].slack= -1;
+#ifdef LINEWATCH
+	clue[i].watch= 0;
+#endif
 
 	while ((n= sread_pint(1)) >= 0)
 	{
@@ -348,6 +351,9 @@ Puzzle *load_lp_puzzle()
 	}
 	clue[i].jobindex= -1;
 	clue[i].slack= -1;
+#ifdef LINEWATCH
+	clue[i].watch= 0;
+#endif
 
 	if ((word= sread_keyword()) == NULL) fail(badfmt);
 	/*

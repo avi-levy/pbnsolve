@@ -68,7 +68,8 @@ Command line options:
 
 	   unique        - puzzle had a unique solution.
 	   multiple      - puzzle had multiple solutions.
-	   logical       - puzzle was solvable without guessing.
+	   line          - puzzle was solvable with line & color logic alone.
+	   depth-2       - puzzle was solvable with two-level lookahead.
 	   trivial       - puzzle was too easy, with little or no whitespace.
 	   solvable      - found solution but none of the above was proven.
 	   contradiction - puzzle had no solutions.
@@ -270,11 +271,13 @@ solver was for any reason unable to run, or "TIMEOUT" if the solver
 exceeded it's runtime limit, or "OK" otherwise.  <Unique> is 1 if
 the puzzle has only one solution, 0 if otherwise.  If there are
 multiple solutions, it will give one that differs from the goal
-solution in the <alt> tag.  <Logic> is 1 if it was solvable without
-needing to make any guesses.   <Difficulty> is a measure of how hard
-the solver had to work to solve the puzzle.  It's -1 if the puzzle
-was blank, 100 if the puzzle had so little white space that it was
-trivial to solve, and a larger number if it was harder.
+solution in the <alt> tag.  <Logic> is 1 if it was solvable by line
+and color logic alone, 2 if two-level lookahead was needed.  If the
+solver had to guess, no <logic> line appears.  <Difficulty> is a
+measure of how hard the solver had to work to solve the puzzle.
+It's -1 if the puzzle was blank, 100 if the puzzle had so little
+white space that it was trivial to solve, and a larger number if
+it was harder.
 
 Input Formats:
 --------------

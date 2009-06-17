@@ -50,6 +50,14 @@
 
 /* #define DUMP_FILE "/tmp/pbnsolve.dump"  /**/
 
+/* LIMIT COLORS - If LIMITCOLORS is defined, pbnsolve will only be able to
+ * handle puzzles with 32 colors or less (maybe 64 if your computer has
+ * 64 bit long ints).  If this is not defined unlimited colors can be used,
+ * at least in theory.  That's never been tested.
+ */
+
+#define LIMITCOLORS /**/
+
 /* NO XML - If you don't have libxml2, then you can define NOXML and pbnsolve
  * will be built that can read only the non-xml file formats.  Currently all
  * the supported non-xml file formats are pathetic, but that's life.
@@ -69,7 +77,7 @@
  *   DEBUG_LEVEL == 3            Everything on.
  */
 
-#define DEBUG_LEVEL 3
+#define DEBUG_LEVEL 2
 
 /* LINE WATCH - If this flag is enabled, then you can give arguments like
  * -wR12 to watch row 12 or -wC0 to watch column zero.  Lots of diagnostics
@@ -77,4 +85,4 @@
  * Disabling this at compile time makes the program significantly faster.
  */
 
-#define LINEWATCH
+/*#define LINEWATCH /**/

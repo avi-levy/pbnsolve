@@ -169,7 +169,9 @@ void add_job(Puzzle *puz, dir_t k, line_t i, int depth, int bonus)
 
 /* Add jobs for all lines that cross the given cell.  Don't add direction
  * 'except'.  The cell should already have been updated with it's new value,
- * and 'old' should give it's old value.
+ * and 'old' should give it's old value.  This is also responsible for
+ * checking if the newly set cell invalidates any cached solutions in for
+ * the lines being put back on the job queue.
  */
 
 void add_jobs(Puzzle *puz, Solution *sol, int except, Cell *cell,
@@ -334,8 +336,7 @@ Hist *add_hist2(Puzzle *puz, Cell *cell, color_t oldn, bit_type *oldbit, int bra
     h->cell= cell;
     h->n= oldn;
 
-    for (z= 0; z < puz->colsize; z++)
-    	h->bit[z]= oldbit[z];
+    fbit_cpy(h->bit, oldbit);
 
     return h;
 }
@@ -352,7 +353,6 @@ int undo(Puzzle *puz, Solution *sol, int leave_branch)
     Clue *clue;
     Cell **line;
     dir_t k;
-    color_t z;
     int is_branch;
     line_t i;
 
@@ -390,8 +390,7 @@ int undo(Puzzle *puz, Solution *sol, int leave_branch)
 
 	    /* Restore saved value */
 	    h->cell->n= h->n;
-	    for (z= 0; z < puz->colsize; z++)
-	    	h->cell->bit[z]= h->bit[z];
+	    fbit_cpy(h->cell->bit, h->bit);
 
 	    if (VU || WC(h->cell))
 	    {
@@ -438,9 +437,24 @@ int backtrack(Puzzle *puz, Solution *sol)
     /* This will be the branch point */
     h= HIST(puz, puz->nhist-1);
 
+    if (VB || WC(h->cell))
+    {
+	printf("B: LAST GUESS WAS ");
+	print_coord(stdout,puz,h->cell);
+	printf(" |");
+	dump_bits(stdout,puz,h->bit);
+	printf("| -> |");
+	dump_bits(stdout,puz,h->cell->bit);
+	printf("|\n");
+    }
+
     /* Reset any bits previously set */
-    for (z= 0; z < puz->colsize; z++)
+#ifdef LIMITCOLORS
+    h->cell->bit[0]= ((~h->cell->bit[0]) & h->bit[0]);
+#else
+    for (z= 0; z < fbit_size; z++)
 	h->cell->bit[z]= ((~h->cell->bit[z]) & h->bit[z]);
+#endif
 
     /* Count the number of colors left */
     oldn= h->cell->n;
@@ -452,13 +466,9 @@ int backtrack(Puzzle *puz, Solution *sol)
 
     if (VB || WC(h->cell))
     {
-	printf("B: INVERTING BRANCH CELL ");
-	for (k= 0; k < puz->nset; k++)
-	    printf(" %d",h->cell->line[k]);
-	printf(" TO ");
+	printf("B: INVERTING GUESS TO |");
 	dump_bits(stdout,puz,h->cell->bit);
-	printf(" (%d)\n",h->cell->n);
-	/* print_solution(stdout, puz, sol);*/
+	printf("| (%d)\n",h->cell->n);
     }
 
     /* Now that we've backtracked to it and inverted it, it is no
@@ -498,7 +508,7 @@ int newedge(Puzzle *puz, Cell **line, line_t i, bit_type *old, bit_type *new)
     bit_type *n1, *n2;
     static bit_type one=1, zero= 0;
 
-    for (z= 0; z < puz->colsize; z++)
+    for (z= 0; z < fbit_size; z++)
     {
     	n1= (i > 0) ? &(line[i-1]->bit[z]) :
 	    ((z == 0) ? &one : &zero);

@@ -69,6 +69,8 @@ void dump_bits(FILE *fp, Puzzle *puz, bit_type *bit)
 	    putc(' ', fp);
 }
 
+/* Print the current state of a line of the puzzle solution */
+
 void dump_line(FILE *fp, Puzzle *puz, Solution *sol, dir_t k, line_t i)
 {
     Cell *cell;
@@ -81,6 +83,30 @@ void dump_line(FILE *fp, Puzzle *puz, Solution *sol, dir_t k, line_t i)
 	fputc('|', fp);
     }
     fputc('\n', fp);
+}
+
+/* Dump dup a solution returned from left_solve or right_solve */
+
+void dump_pos(FILE *fp, line_t *pos, line_t *len)
+{
+    int i;
+
+    for (i= 0; pos[i] >= 0; i++)
+    	fprintf(fp,"B%dL%d@%d ",i, len[i], pos[i]);
+    fputc('\n', fp);
+}
+
+
+/* Print the coordinates of a cell */
+void print_coord(FILE *fp, Puzzle *puz, Cell *cell)
+{
+    dir_t k;
+    for (k= 0; k < puz->nset; k++)
+    {
+	fputc(k==0?'(':',', fp);
+	fprintf(fp,"%d",cell->line[k]);
+    }
+    fputc(')',fp);
 }
 
 
@@ -221,7 +247,6 @@ void dump_history(FILE *fp, Puzzle *puz, int full)
 {
     Hist *h;
     int i;
-    dir_t k;
     int nbranch= 0;
 
     for (i= 0; i < puz->nhist; i++)
@@ -229,9 +254,8 @@ void dump_history(FILE *fp, Puzzle *puz, int full)
 	h= HIST(puz,i);
     	if (full)
 	{
-	    fprintf(fp,"Cell");
-	    for (k= 0; k < puz->nset; k++)
-		printf(" %d",h->cell->line[k]);
+	    fprintf(fp,"Cell ");
+	    print_coord(fp,puz,h->cell);
 	    fprintf(fp," was '");
 	    dump_bits(fp, puz, h->bit);
 	    fprintf(fp,h->branch ? "' BRANCH\n" : "'\n");

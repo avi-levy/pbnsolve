@@ -20,8 +20,8 @@
 #include <string.h>
 #include <limits.h>
 
-#include "bitstring.h"
 #include "config.h"
+#include "bitstring.h"
 
 /* Types */
 typedef short line_t;	/* a row/column number */
@@ -70,13 +70,22 @@ typedef struct {
      */
 } Cell;
 
+/* Background color is always color zero */
+#define BGCOLOR 0
+
 /* Macro to test if a cell may be a given color */
 #define may_be(cell,color)  bit_test(cell->bit,color)
+/* Macro to test if a bitstring may be background color */
+#define bit_bg(bit) (*(bit) & 1)
+/* Macro to test if a cell may be background color */
+#define may_be_bg(cell) bit_bg(cell->bit)
+
 
 typedef struct {
     dir_t nset;		/* Number of directions 2 for grids, 3 for triddlers */
     Cell ***line[3];	/* 2 or 3 roots for the cell array */
-    line_t n[3];		/* Length of the line[] arrays */
+    line_t n[3];	/* Length of the line[] arrays */
+    Cell **spiral;	/* An array pointing to all cells in spiral pattern */
 } Solution;
 
 
@@ -152,7 +161,7 @@ typedef struct hist_list {
 } Hist;
 
 /* Size of a history element */
-#define HISTSIZE(puz) (sizeof(Hist) + puz->colsize - bit_size(1))
+#define HISTSIZE(puz) (sizeof(Hist) + fbit_size - bit_size(1))
 
 /* i-th element of the history array */
 #define HIST(puz,i) (Hist *)(((char *)puz->history)+(i)*HISTSIZE(puz))
@@ -206,7 +215,6 @@ typedef struct {
     byte type;		/* Puzzle type.  Some PT_ value */
     dir_t nset;		/* Number of directions 2 for grids, 3 for triddlers */
     color_t ncolor,scolor; /* Number of colors used, size of color array */
-    color_t colsize;	/* Array size of color bit arrays */
     Clue *clue[3];	/* Arrays of clues (nset of which are used) */
     line_t n[3];	/* Length of the clue[] arrays */
     ColorDef *color;	/* Array of color definitions */
@@ -336,6 +344,8 @@ char *cluename(byte type, dir_t k);
 char *CLUENAME(byte type, dir_t k);
 void dump_bits(FILE *fp, Puzzle *puz, bit_type *bits);
 void print_solution(FILE *fp, Puzzle *puz, Solution *sol);
+void dump_pos(FILE *fp, line_t *pos, line_t *len);
+void print_coord(FILE *fp, Puzzle *puz, Cell *cell);
 void dump_line(FILE *fp, Puzzle *puz, Solution *sol, byte k, line_t i);
 void dump_solution(FILE *fp, Puzzle *puz, Solution *sol, int once);
 void dump_puzzle(FILE *fp, Puzzle *puz);
@@ -354,6 +364,7 @@ line_t count_paint(Puzzle *puz, Solution *sol, dir_t k, line_t i);
 void count_cell(Puzzle *puz, Cell *cell);
 char *solution_string(Puzzle *puz, Solution *sol);
 int check_nsolved(Puzzle *puz, Solution *sol);
+void make_spiral(Solution *sol);
 
 /* line_lro.c functions */
 void init_line(Puzzle *puz);
@@ -379,8 +390,16 @@ int backtrack(Puzzle *puz, Solution *sol);
 int newedge(Puzzle *puz, Cell **line, line_t i, bit_type *old, bit_type *new);
 
 /* solve.c functions */
-extern int nlines, guesses, backtracks, probes, merges, contratests;
+extern int nlines, guesses, backtracks, probes, merges;
+extern int contratests, contrafound;
+int logic_solve(Puzzle *puz, Solution *sol, int contradicting);
 int solve(Puzzle *puz, Solution *sol);
+
+/* probe.c functions */
+int probe(Puzzle *puz, Solution *sol, line_t *besti, line_t *bestj, color_t *bestc);
+
+/* contradict.c functions */
+int contradict(Puzzle *puz, Solution *sol);
 
 /* exhaust.c functions */
 extern int exh_runs, exh_cells;
@@ -394,6 +413,7 @@ char *query_lookup(char *query, char *var);
 void make_clues(Puzzle *puz, Solution *sol);
 
 /* merge.c functions */
+extern int merging;
 void merge_guess(void);
 void merge_set(Puzzle *puz, Cell *cell, bit_type *bit);
 int merge_check(Puzzle *puz, Solution *sol);

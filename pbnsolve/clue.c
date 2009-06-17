@@ -64,6 +64,9 @@ void make_clues(Puzzle *puz, Solution *sol)
 	    clue->color= (color_t *) malloc(clue->s * sizeof(color_t));
 	    clue->jobindex= -1;
 	    clue->slack= -1;
+#ifdef LINEWATCH
+	    clue->watch= 0;
+#endif
 
 	    /* Scan the line of the solution - this scans one past EOL */
 	    color= 0;
@@ -75,7 +78,7 @@ void make_clues(Puzzle *puz, Solution *sol)
 		newcolor= 0;
 		if (cell != NULL)
 		    for (c= 0; c < puz->ncolor; c++)
-		    	if (may_be(cell,c))
+		    	if (bit_test(cell->bit,c))
 			{
 			    newcolor= c;
 			    break;
