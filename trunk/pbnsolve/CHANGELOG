@@ -1,4 +1,4 @@
-version 1.05 - 
+version 1.05 - June 19, 2009
   - Improved probing performance by having it remember all cells that were
     set on previous probes and not probe on those, since they can't possibly
     give a better result.
