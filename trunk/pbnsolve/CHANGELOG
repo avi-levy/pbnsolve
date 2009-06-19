@@ -1,3 +1,14 @@
+version 1.05 - 
+  - Improved probing performance by having it remember all cells that were
+    set on previous probes and not probe on those, since they can't possibly
+    give a better result.
+  - Performance improvements and bug fixes to merging algorithm, but it still
+    isn't a net gain.  Makes some puzzles a little faster, and some a little
+    slower.  Tends toward a little slower on the really hard puzzles.  So we
+    leave it turned off by default.
+  - Added ability to read Olsak .g files, except triddlers and triangle
+    puzzles.
+
 version 1.04 - June 17, 2009
   - Added caching of old left/right solutions for each line, and reuse of them
     when possible to speed up line solving.  This adds a heck of a lot of

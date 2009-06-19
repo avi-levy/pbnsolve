@@ -95,9 +95,25 @@ int read_bw_clues(Clue *clue, line_t nclue)
 	    clue[i].color[clue[i].n]= 1;
 	    clue[i].n++;
 	}
-	if (n == -1 || n == -2) return 1;
+	if (n == -1 || (n == -2 && i != nclue - 1)) return 1;
     }
     return 0;
+}
+
+
+/* Create color definitions for a black and white puzzle */
+
+void init_bw_colors(Puzzle *puz)
+{
+    /* Color table, including just black as 1 and white as 0 */
+    puz->ncolor= puz->scolor= 2;
+    puz->color= (ColorDef *)malloc(2*sizeof(ColorDef));
+    puz->color[0].name= strdup("white");
+    puz->color[0].rgb= strdup("ffffff");
+    puz->color[0].ch= '.';
+    puz->color[1].name= strdup("black");
+    puz->color[1].rgb= strdup("000000");
+    puz->color[1].ch= 'X';
 }
 
 
@@ -115,15 +131,7 @@ Puzzle *init_bw_puzzle()
     puz->type= PT_GRID;
     puz->nset= 2;
 
-    /* Color table, including just black as 1 and white as 0 */
-    puz->ncolor= puz->scolor= 2;
-    puz->color= (ColorDef *)malloc(2*sizeof(ColorDef));
-    puz->color[0].name= strdup("white");
-    puz->color[0].rgb= strdup("ffffff");
-    puz->color[0].ch= '.';
-    puz->color[1].name= strdup("black");
-    puz->color[1].rgb= strdup("000000");
-    puz->color[1].ch= 'X';
+    init_bw_colors(puz);
     
     return puz;
 }

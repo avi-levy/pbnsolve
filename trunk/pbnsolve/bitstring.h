@@ -220,4 +220,18 @@ extern int fbit_size;
 	}
 #endif
 
+	/*
+	 * OR the source bit string into the destination
+	 */
+#ifdef LIMITCOLORS
+#define	fbit_or(Dest, Src) \
+	{ *(Dest)|= *(Src); }
+#else
+#define	fbit_or(Dest, Src) \
+	{	register _bit_i; \
+		for (_bit_i = fbit_size-1; _bit_i >= 0; _bit_i--) \
+			Dest[_bit_i]|= Src[_bit_i]; \
+	}
+#endif
+
 #endif

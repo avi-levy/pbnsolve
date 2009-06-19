@@ -18,8 +18,57 @@
 int merging= 0;		/* Are we currently merging? */
 int merge_no= -1;	/* Guess count.  If 0 we are on first guess for cell */
 MergeElem *merge_list= NULL; /* List of consequences of all guesses so far */
+MergeElem *mergegrid;	/* Grid of merge cells */
 
 extern bit_type *oldval;
+
+
+/* INIT_MERGE - Allocate merge array */
+
+void init_merge(Puzzle *puz)
+{
+    mergegrid= (MergeElem *)calloc(puz->ncells, sizeof(MergeElem));
+}
+
+
+void dump_merge(Puzzle *puz)
+{
+    MergeElem *m;
+    int n= 0;
+
+    for (m= merge_list; m != NULL; m= m->next)
+    {
+	if (n++ > 1000) {printf("Yicks!\n"); exit(1);}
+	if (m->cell)
+	{
+	    printf("  %d: CELL (%d,%d) BITS ",n,
+		m->cell->line[0], m->cell->line[1]);
+	    dump_bits(stdout, puz, m->bit);
+	    printf("\n");
+	}
+	else
+	    printf("  %d: NULL\n",n);
+    }
+}
+
+
+/* MERGE_CANCEL() - Don't do merging for this pass after all.  We call this
+ * when we skip some probes on a cell, since merging isn't valid then.
+ */
+
+void merge_cancel()
+{
+    MergeElem *m;
+
+    if (VM) printf("M: MERGING CANCELED\n");
+
+    for (m= merge_list; m != NULL; m= m->next)
+	m->cell= NULL;
+
+    merge_list= NULL;
+    merge_no= -1;
+    merging= 0;
+}
 
 
 /* MERGE_GUESS() - Called when we make a new guess on a cell, including
@@ -29,19 +78,18 @@ extern bit_type *oldval;
 
 void merge_guess()
 {
-    MergeElem *m, *n, *p= NULL;
+    MergeElem *m, *p= NULL;
     int ndrop= 0, nleft= 0;
 
-    for (m= merge_list; m != NULL; m= n)
+    for (m= merge_list; m != NULL; m= m->next)
     {
-	n= m->next;
-	if (m->maxc < merge_no)
+	if (m->cell == NULL || m->maxc < merge_no)
 	{
 	    if (p)
-	       p->next= n;
+	       p->next= m->next;
 	    else
-	       merge_list= n;
-	    free(m);
+	       merge_list= m->next;
+	    m->cell= NULL;	/* Mark the cell unused */
 	    if (VM) ndrop++;
 	}
 	else
@@ -51,7 +99,6 @@ void merge_guess()
 	}
     }
     merge_no++;
-    merging= 1;
 
     if (VM) printf("M: MERGE PASS %d - %d dropped, %d left\n",
 		    merge_no,ndrop,nleft);
@@ -70,20 +117,16 @@ void merge_set(Puzzle *puz, Cell *cell, bit_type *bit)
     color_t z;
     int zero;
 
-    /* Scan existing merge list, to see if we have an entry for this cell */
-    for (m= merge_list, p= NULL;
-    	 m != NULL && m->cell != cell;
-	 p=m, m= m->next)
-	 { }
-
-    if (m == NULL)
+    /* Get the merge element for this cell */
+    m= &mergegrid[cell->id];
+    
+    if (m->cell == NULL)
     {
 	/* If this is not the first guess, and the cell is not already on the
 	 * list, do nothing.  */
     	if (merge_no > 0) return;
 
 	/* Otherwise, make a new merge list entry */
-	m= (MergeElem *)malloc(sizeof(MergeElem) + fbit_size - bit_size(1));
 	m->cell= cell;
 	m->maxc= merge_no;
 #ifdef LIMITCOLORS
@@ -96,15 +139,39 @@ void merge_set(Puzzle *puz, Cell *cell, bit_type *bit)
 	merge_list= m;
 	if (VM)
 	{
-	    printf("M: NEW MERGE CELL (%d,%d) BITS ",
-		m->cell->line[0], m->cell->line[1]);
+	    printf("M: NEW MERGE CELL (%d,%d) L%d BITS ",
+		m->cell->line[0], m->cell->line[1], merge_no);
 	    dump_bits(stdout, puz, m->bit);
 	    printf("\n");
 	}
 	return;
     }
 
-    /* If the cell is on the list, intersect the changes */
+    if (m->maxc == merge_no)
+    {
+    	/* If cell has already been updated on this pass, and this is not
+	 * pass zero, then we can't record the change correctly, so we don't
+	 * record them.  We might miss some merges this way, but this is a
+	 * really rare occurance that happens only on really successful probes,
+	 * which are likely to be our next guess anyway.
+	 */
+	if (merge_no == 0)
+	    /* If this is pass zero, the we can OR the changes in because
+	     * we haven't ANDed it with anything else yet */
+	    m->bit[0]|= cell->bit[0] & ~bit[0];
+
+	if (VM)
+	{
+	    printf("M: REVISITING MERGE CELL (%d,%d) L%d BITS ",
+		m->cell->line[0], m->cell->line[1], merge_no);
+	    dump_bits(stdout, puz, m->bit);
+	    printf("\n");
+	}
+
+	return;
+    }
+
+    /* If the cell is on the list from previous probe, intersect the changes */
 #ifdef LIMITCOLORS
     m->bit[0]&= cell->bit[0] & ~bit[0];
     if (m->bit[0] == 0)
@@ -119,15 +186,13 @@ void merge_set(Puzzle *puz, Cell *cell, bit_type *bit)
     if (zero)
 #endif
     {
-    	/* No intersection - delete the node */
-	if (VM) printf("M: DROPPING MERGE CELL (%d,%d)\n",
-	    m->cell->line[0], m->cell->line[1]);
+    	/* No intersection - mark the node for deletion. Actual
+	 * deletion from linked list happens during merge_guess. */
 
-	if (p)
-	    p->next= m->next;
-	else
-	    merge_list= m->next;
-	free(m);
+	if (VM) printf("M: DROPPING MERGE CELL (%d,%d) L%d\n",
+	    m->cell->line[0], m->cell->line[1], merge_no);
+
+	m->cell= NULL;
     }
     else
     {
@@ -136,31 +201,31 @@ void merge_set(Puzzle *puz, Cell *cell, bit_type *bit)
 
 	if (VM)
 	{
-	    printf("M: UPDATING MERGE CELL (%d,%d) BITS ",
-		m->cell->line[0], m->cell->line[1]);
+	    printf("M: UPDATING MERGE CELL (%d,%d) L%d BITS ",
+		m->cell->line[0], m->cell->line[1], merge_no);
 	    dump_bits(stdout, puz, m->bit);
 	    printf("\n");
 	}
     }
 }
 
+
 /* MERGE_CHECK - after completing the last probe on a cell, calling this
  * checks to see if there is anything on the merge list left.  If there is,
  * those settings must be necessary.  Returns true if anything was found.
- * This always consumes the merge_list and leaves things properly initialized
- * for probing on a new cell.
+ * This always resets the merge_list to empty and leaves things properly
+ * initialized for probing on a new cell.
  */
 
 int merge_check(Puzzle *puz, Solution *sol)
 {
-    MergeElem *m, *n;
+    MergeElem *m;
     dir_t z;
     int found= 0;
 
-    for (m= merge_list; m != NULL; m= n)
+    for (m= merge_list; m != NULL; m= m->next)
     {
-	n= m->next;
-	if (m->maxc == merge_no)
+	if (m->maxc == merge_no && m->cell != NULL)
 	{
 	    if (VM)
 	    {
@@ -196,7 +261,8 @@ int merge_check(Puzzle *puz, Solution *sol)
 
 	    found= 1;
 	}
-	free(m);
+	/* Reset to unused state */
+	m->cell= NULL;
     }
     if (VM && !found) printf("M: NO MERGE CONSEQUENCES\n");
 

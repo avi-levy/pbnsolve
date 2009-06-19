@@ -28,7 +28,7 @@
 
 extern bit_type *oldval;
 
-/* SCRATCHPAD - This is a two dimensional array of size (ncells x ncolor),
+/* SCRATCHPAD - This is a two dimensional array of size (n x ncolor),
  * which stores information about a row or a column.  The array is initialized
  * to all zero. A zero means that it has not been shown that that cell can be
  * that color.  The macro PAD(p,i,c) references the value for cell i, color

@@ -400,8 +400,9 @@ int main(int argc, char **argv)
     /* Initialize the bitstring handling code for puzzles of our size */
     fbit_init(puz->ncolor);
 
-    /* preallocate some arrays used by the line solver */
+    /* preallocate some arrays */
     init_line(puz);
+    if (mergeprobe) init_merge(puz);
 
     if (VA) printf("A: pbnsolve version %s\n", version);
 

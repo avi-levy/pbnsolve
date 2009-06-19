@@ -39,7 +39,7 @@ Cell *new_cell(color_t ncolor)
 
 void init_solution(Puzzle *puz, Solution *sol, int set)
 {
-    line_t i, j;
+    line_t i, j, n;
     color_t col;
     Cell *c;
 
@@ -48,6 +48,7 @@ void init_solution(Puzzle *puz, Solution *sol, int set)
     /* Copy number of directions from puzzle */
     sol->nset= puz->nset;
 
+    n= 0;
     if (puz->type == PT_GRID)
     {
 	/* Build the array of rows */
@@ -62,6 +63,7 @@ void init_solution(Puzzle *puz, Solution *sol, int set)
 	    for (j= 0; j < sol->n[D_COL]; j++)
 	    {
 		sol->line[D_ROW][i][j]= c= new_cell(puz->ncolor);
+		c->id= n++;
 		if (set)
 		    for (col= 0; col < puz->ncolor; col++)
 		    	bit_set(c->bit, col);
