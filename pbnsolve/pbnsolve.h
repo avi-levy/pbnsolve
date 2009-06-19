@@ -62,6 +62,7 @@ typedef struct {
     line_t index[3];	/* 2 or 3 indexes of this cell in those lines */
     color_t n;		/* Number of bits set in the bit string */
     bit_decl(bit,1);	/* bit string with 1 for each possible color */
+    line_t id;		/* A unique number in (0,rows*cols-1) for this cell */
 
     /* Do not define any fields after 'bit'.  When we allocate memory for this
      * data structure, we will actually be allocating more if we need longer
@@ -244,7 +245,7 @@ typedef struct {
 #define FF_NON		4	/* Simpson's NON file format */
 #define FF_PBM		5	/* netpbm PBM image file */
 #define FF_LP		6	/* Bosch's format for LP solver */
-
+#define FF_OLSAK	7	/* The Olsak's G multicolor file format */
 
 
 /* Debug Flags - You can disable any of these completely by just defining them
@@ -334,10 +335,11 @@ Puzzle *load_puzzle_stdin(int fmt, int index);
 
 Puzzle *new_puzzle(void);
 void free_puzzle(Puzzle *puz);
+color_t new_color(Puzzle *puz);
 color_t find_color(Puzzle *puz, char *name);
 color_t find_color_char(Puzzle *puz, char ch);
 color_t find_or_add_color(Puzzle *puz, char *name);
-void add_color(Puzzle *puz, char *name, char *rgb, char ch);
+int add_color(Puzzle *puz, char *name, char *rgb, char ch);
 
 /* dump.c functions */
 char *cluename(byte type, dir_t k);
@@ -396,6 +398,9 @@ int logic_solve(Puzzle *puz, Solution *sol, int contradicting);
 int solve(Puzzle *puz, Solution *sol);
 
 /* probe.c functions */
+extern int probing;
+extern bit_type *probepad;
+#define propad(cell) (probepad+(cell->id)*fbit_size)
 int probe(Puzzle *puz, Solution *sol, line_t *besti, line_t *bestj, color_t *bestc);
 
 /* contradict.c functions */
@@ -414,6 +419,7 @@ void make_clues(Puzzle *puz, Solution *sol);
 
 /* merge.c functions */
 extern int merging;
+void merge_cancel(void);
 void merge_guess(void);
 void merge_set(Puzzle *puz, Cell *cell, bit_type *bit);
 int merge_check(Puzzle *puz, Solution *sol);

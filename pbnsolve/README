@@ -1,4 +1,4 @@
-PBNSOLVE VERSION 1.04
+PBNSOLVE VERSION 1.05
 Jan Wolter
 
 This software is open source, copyrighted by Jan Wolter, but released under
@@ -51,7 +51,7 @@ Run syntax is:
    pbnsolve -[bdhlopt] -[v<msgflags>] [-n<n>] [-s<n>] [-x<n>]
    	[-f<fmt>] [-a<algorithm>] [<datafile>]
 
-Input files may be in any of several formats, described in the "Input Format"
+Input files may be in any of too many formats, described in the "Input Format"
 section below.  Pbnsolve will try to guess the file format based on the
 filename suffix.  If that doesn't work, it will try to guess it based on
 the content of the file, though it doesn't do that terribly well.
@@ -386,8 +386,17 @@ Recognized formats are listed below:
     blank clue is indicated by a line with just a zero on it, but pbnsolve
     will also treat blank lines as blank clues.
 
-    The Olsak's also have a multicolor puzzle format where files take a .g
-    suffix, but pbnsolve does not support that at this time.
+  OLSAK .G FORMAT
+    Suffix:  "g"
+    Contains:  clues
+    Color:  multicolor
+
+    This rather complex format is documented inside the sample files that
+    come with the olsak solver.  The format can support triddlers and triangle
+    puzzles, but pbnsolve can't read those variations.
+
+    Pbnsolve will not be able to automatically identify these files unless
+    they have a .g suffix or the -fg flag is given.
 
   JAKUB WILK'S .NIN FORMAT
     Suffix:  "non"

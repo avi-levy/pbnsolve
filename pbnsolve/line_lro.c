@@ -15,7 +15,7 @@
 
 #include "pbnsolve.h"
 
-#define colbit(i) (col+(fbit_size*i))
+#define colbit(i) (col+(fbit_size*(i)))
 
 #ifdef LINEWATCH
 #define WL (clue->watch)

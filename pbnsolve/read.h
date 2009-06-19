@@ -16,6 +16,7 @@ int sread_pint(int newline);
 char *sread_keyword(void);
 
 Puzzle *new_puzzle(void);
+void init_bw_colors(Puzzle *puz);
 Puzzle *init_bw_puzzle(void);
 
 Puzzle *load_xml_puzzle(int index);
@@ -24,3 +25,4 @@ Puzzle *load_nin_puzzle(void);
 Puzzle *load_non_puzzle(void);
 Puzzle *load_pbm_puzzle(void);
 Puzzle *load_lp_puzzle(void);
+Puzzle *load_g_puzzle(void);

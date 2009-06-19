@@ -146,7 +146,8 @@ char *sread_keyword()
 }
 
 /* SENSE_FMT - Guess the puzzle file format based on the first hunk of the
- * file.
+ * file.  Currently this only works if it can do it based on the first
+ * character.  We could tell many more apart if we read more of the file.
  */
 
 int sense_fmt()
@@ -179,6 +180,7 @@ struct {
 	{"xml", FF_XML},
 #endif
 	{"mk", FF_MK},
+	{"g", FF_OLSAK},
 	{"nin", FF_NIN},
 	{"non", FF_NON},
 	{"pbm", FF_PBM},
@@ -251,6 +253,10 @@ Puzzle *load_puzzle(int fmt, int index)
 
     case FF_LP:
     	puz= load_lp_puzzle();
+	break;
+
+    case FF_OLSAK:
+    	puz= load_g_puzzle();
 	break;
 
     default:

@@ -181,6 +181,12 @@ void add_jobs(Puzzle *puz, Solution *sol, int except, Cell *cell,
     line_t i, j;
     int lwork, rwork;
 
+    /* While probing, we OR all bits set into our scratchpad.  These values
+     * should not be probed on later during this sequence.
+     */
+    if (probing)
+    	fbit_or(propad(cell),cell->bit);
+
     if (!maylinesolve) return;
 
     for (k= 0; k < puz->nset; k++)

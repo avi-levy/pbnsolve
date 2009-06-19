@@ -102,6 +102,23 @@ color_t find_color_char(Puzzle *puz, char ch)
     return -1;
 }
 
+/* NEW_COLOR - Create a new entry in the color table, and return it's index.
+ * Doesn't initialize the new entry at all.
+ */
+
+color_t new_color(Puzzle *puz)
+{
+    /* If necessary, enlarge the color array */
+    if (puz->ncolor >= puz->scolor)
+    {
+	puz->scolor+= 3;
+	puz->color= (ColorDef *)realloc(puz->color,
+	    puz->scolor * sizeof(ColorDef));
+    }
+
+    return puz->ncolor++;
+}
+
 
 /* FIND_OR_ADD_COLOR - Find the named color in the color definition list.
  * If it is not there, add it with rgb and character codes undefined.
@@ -117,14 +134,8 @@ color_t find_or_add_color(Puzzle *puz, char *name)
 	return i;
 
     /* If necessary, enlarge the color array */
-    if (puz->ncolor >= puz->scolor)
-    {
-	puz->scolor+= 3;
-	puz->color= (ColorDef *)realloc(puz->color,
-	    puz->scolor * sizeof(ColorDef));
-    }
-
-    c= &puz->color[i= puz->ncolor++];
+    i= new_color(puz);
+    c= &puz->color[i];
     c->name= strdup(name);
     c->rgb= NULL;
     c->ch= '\0';
@@ -135,10 +146,10 @@ color_t find_or_add_color(Puzzle *puz, char *name)
 
 /* ADD_COLOR - Add a color to a puzzle.  If the colorname is already in the
  * puzzle, just update the definitions.  If values are not known, rgb can be
- * NULL and ch can be '\0'.
+ * NULL and ch can be '\0'.  Returns the index of the new color.
  */
 
-void add_color(Puzzle *puz, char *name, char *rgb, char ch)
+int add_color(Puzzle *puz, char *name, char *rgb, char ch)
 {
     color_t i= find_or_add_color(puz,name);
     ColorDef *c= &puz->color[i];
@@ -146,4 +157,5 @@ void add_color(Puzzle *puz, char *name, char *rgb, char ch)
     if (c->rgb != NULL) free(c->rgb);
     c->rgb= safedup(rgb);
     c->ch= ch;
+    return i;
 }
