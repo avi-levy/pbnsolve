@@ -47,7 +47,7 @@ testline: testline.c line_lro.o read.o dump.o grid.o merge.o job.o read_xml.o \
 	cc -o testline $(CFLAGS) testline.c line_lro.o read.o dump.o grid.o \
 	merge.o job.o read_xml.o puzz.o clue.o $(LIB)
 
-TARBALL= README CHANGELOG pbnsolve.html pbn_fmt.html Makefile \
+TARBALL= README CHANGELOG Makefile \
 	bitstring.h config.h pbnsolve.h read.h read_bw.c read_grid.c \
 	pbnsolve.c puzz.c read.c read_xml.c solve.c testgamma.c \
 	clue.c dump.c gamma.c grid.c http.c job.c line_lro.c merge.c \
