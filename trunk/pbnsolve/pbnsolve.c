@@ -534,7 +534,7 @@ int main(int argc, char **argv)
     {
 	if (!iscomplete && puz->found == NULL)
 	{
-	    puts("stalled");
+	    puts(maybacktrack ? "contradiction" : "stalled");
 	}
 	else if (rc)
 	{
@@ -571,9 +571,14 @@ int main(int argc, char **argv)
     {
 	if (!iscomplete && puz->found == NULL)
 	{
-	    /* Found incomplete solution.  Only with -l */
-	    printf("STALLED WITH PARTIAL SOLUTION:\n");
-	    print_solution(stdout, puz, sol);
+	    if (maybacktrack)
+		printf("NO SOLUTION.\n");
+	    else
+	    {
+		/* Found incomplete solution.  Only with -l */
+		printf("STALLED WITH PARTIAL SOLUTION:\n");
+		print_solution(stdout, puz, sol);
+	    }
 	}
 	else if (rc)
 	{
