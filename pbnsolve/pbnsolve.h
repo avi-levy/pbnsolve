@@ -357,6 +357,7 @@ void dump_history(FILE *fp, Puzzle *puz, int full);
 /* grid.c functions */
 Cell *new_cell(color_t ncolor);
 Solution *new_solution(Puzzle *puz);
+int count_solved(Solution *sol);
 void init_solution(Puzzle *puz, Solution *sol, int set);
 void free_solution(Solution *sol);
 void free_solution_list(SolutionList *sl);

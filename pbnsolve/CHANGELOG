@@ -1,5 +1,7 @@
 version 1.06 - 
   - Better output in case of puzzle with no solutions.
+  - Fix some bugs that manifested when starting from a partially complete
+    solution loaded from an XML file.
 
 version 1.05 - June 19, 2009
   - Improved probing performance by having it remember all cells that were

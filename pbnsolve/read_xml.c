@@ -124,7 +124,8 @@ void parse_xml_solutionimage(Puzzle *puz, Solution *sol, char *p)
 	else if (*p == '?')
 	{
 	    /* Cell can be any color */
-	    bit_setall(cell->bit, puz->ncolor);
+	    for (color= 0; color < puz->ncolor; color++)
+		bit_set(cell->bit, color);
 	    cell->n= puz->ncolor;
 	}
 	else

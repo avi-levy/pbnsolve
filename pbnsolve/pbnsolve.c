@@ -424,6 +424,7 @@ int main(int argc, char **argv)
 	    if (startsol > 0 && sl->type == STYPE_SAVED && ++i == startsol)
 	    {
 		sol= &sl->s;
+		puz->nsolved= count_solved(sol);
 		if (!checksolution || goal != NULL) break;
 	    }
 	    if (checksolution && sl->type == STYPE_GOAL)

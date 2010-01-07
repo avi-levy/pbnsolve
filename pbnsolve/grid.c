@@ -97,6 +97,18 @@ void init_solution(Puzzle *puz, Solution *sol, int set)
     sol->spiral= NULL;
 }
 
+/* COUNT_SOLVED - Given a solution grid, return the number of solved cells. */
+
+int count_solved(Solution *sol)
+{
+    int i,j;
+    int n= 0;
+    for (i= 0; i < sol->n[D_COL]; i++)
+	for (j= 0; j < sol->n[D_ROW]; j++)
+	    if (sol->line[D_COL][i][j]->n == 1) n++;
+    return n;
+}
+
 
 /* NEW_SOLUTION - generate a solution structure for the given puzzle.
  * All cells start unknown.
