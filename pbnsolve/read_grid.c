@@ -60,6 +60,7 @@ void skipcomments()
 void parse_grid(Puzzle *puz, Solution *sol, char *colorchar, int unknown)
 {
     int i,j, ch;
+    color_t color;
     char *p;
     Cell *cell;
 
@@ -78,7 +79,8 @@ void parse_grid(Puzzle *puz, Solution *sol, char *colorchar, int unknown)
 	    cell= sol->line[D_ROW][i][j];
 	    if (ch == unknown)
 	    {
-	    	bit_setall(cell->bit, puz->ncolor);
+		for (color= 0; color < puz->ncolor; color++)
+		    bit_set(cell->bit, color);
 		cell->n= puz->ncolor;
 	    }
 	    else

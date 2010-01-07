@@ -1,4 +1,4 @@
-version 1.06 - 
+version 1.06 - Jan 7, 2010
   - Better output in case of puzzle with no solutions.
   - Fix some bugs that manifested when starting from a partially complete
     solution loaded from an XML file.
