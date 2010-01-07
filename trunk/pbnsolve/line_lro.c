@@ -1405,12 +1405,12 @@ bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell)
     if (ncell <= 0) ncell= count_cells(puz, sol, k, i);
 
     if (D)
-	printf("-----------------LEFT------------------\n");
+	printf("-----------------D%dL%d-LEFT------------------\n",k,i);
     left= left_solve(puz, sol, k, i, 1);
     if (left == NULL) return NULL;
 
     if (D)
-	printf("-----------------RIGHT-----------------\n");
+	printf("-----------------D%dL%d-RIGHT-----------------\n",k,i);
     right= right_solve(puz, sol, k, i, ncell, 1);
     if (right == NULL)
     	fail("Left solution but no right solution for %s %d\n",
@@ -1537,9 +1537,11 @@ int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth)
 		if (VS || DW(k,i))
 		{
 		    if (DW(k,i))
-			printf("L: CELL %d - BYTE %d - CHANGED FROM (",j,z);
+			printf("L: CELL %d,%d - BYTE %d - CHANGED FROM (",
+				k == D_ROW ? i : j, k == D_ROW ? j : i, z);
 		    else
-			printf("S: CELL %d CHANGED FROM (", j);
+			printf("S: CELL %d,%d CHANGED FROM (",
+				k == D_ROW ? i : j, k == D_ROW ? j : i);
 		    dump_bits(stdout, puz, cell[j]->bit);
 		}
 
