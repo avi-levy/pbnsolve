@@ -74,7 +74,7 @@ Command line options:
 	   solvable      - found solution but none of the above was proven.
 	   contradiction - puzzle had no solutions.
 	   timeout       - cpu limit exceeded without a solution.
-	   stalled       - only partially solved puzzle.  Occurs with -l flag.
+	   stalled       - only partially solved puzzle.
 
 	Without the -b flag you get wordier output along with ASCII images
 	of one or two puzzle solutions.  You don't get triviality reported
@@ -170,10 +170,6 @@ Command line options:
 	suffix of the input filename.  If there is no recognizable suffix,
 	then it will try to guess the format of the file from it's first
 	few bytes.
-
-   -l  
-        Do logical solving only, no backtracking, probing or guessing.
-	If we can't solve it without searching, return partial solution.
 
    -n<n>
         For file formats, like the XML format, in which the file can contain
