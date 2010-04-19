@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-char *version= "1.1";
+char *version= "1.07";
 
 #include "pbnsolve.h"
 
@@ -26,15 +26,17 @@ char *version= "1.1";
 #endif
 
 int verb[NVERB];
-int maybacktrack= 1, mayexhaust= 1, maycontradict= 0;
+int maybacktrack= 1, mayexhaust= 1, maycontradict= 0, maycache= 1;
 int mayprobe= 1, mergeprobe= 0, maylinesolve= 1;
 int contradepth= 2;
 int checkunique= 0;
 int checksolution= 0;
+int cachelines= 0;
 int http= 0, terse= 0;
 
-int nlines, probes, guesses, backtracks, merges, exh_runs, exh_cells;
-int contratests, contrafound;
+long nlines, probes, guesses, backtracks, merges;
+long exh_runs, exh_cells;
+long contratests, contrafound;
 
 
 void timeout(int sig)
@@ -94,6 +96,10 @@ int setalg(char ch)
 	mayprobe= 1;
 	mergeprobe= 1;
     	break;
+    case 'H':
+	/* Caching of linesolver results */
+	maycache= 1;
+    	break;
     case 0:
 	/* Called to turn everything off */
 	maylinesolve= 0;
@@ -102,6 +108,7 @@ int setalg(char ch)
 	mayprobe= 0;
 	mergeprobe= 0;
 	maycontradict= 0;
+	maycache= 0;
     	break;
     default:
     	return 0;
@@ -212,7 +219,7 @@ int main(int argc, char **argv)
 		    /* Set flags to turn on debugging for various sections */
 		    if (vflag && (vi= index(vchar,argv[i][j])))
 		    {
-		    	verb[vi-vchar]= 1;
+		    	verb[vi-vchar]++;
 			continue;
 		    }
 		    else
@@ -528,7 +535,7 @@ int main(int argc, char **argv)
 	    puts("<status>FAIL: Puzzle has no solution</status>");
 	if (guesses == 0 && probes == 0)
 	    printf("<logic>%d</logic>\n", contrafound == 0 ? 1 : 2);
-	printf("<difficulty>%d</difficulty>\n",nlines*100/totallines);
+	printf("<difficulty>%ld</difficulty>\n",nlines*100/totallines);
 	puts("</data>");
     }
     else if (terse)
@@ -636,23 +643,28 @@ int main(int argc, char **argv)
 	    totallines+= puz->n[i];
 	printf("Cells Solved: %d of %d\n",puz->nsolved, puz->ncells);
 	printf("Lines in Puzzle: %d\n",totallines);
-	printf("Lines Processed: %d (%d%%)\n",nlines,nlines/totallines*100);
+	printf("Lines Processed: %ld (%ld%%)\n",nlines,nlines/totallines*100);
 	if (exh_runs > 0 || mayexhaust)
-	    printf("Exhaustive Search: %d cell%s in %d pass%s\n",
+	    printf("Exhaustive Search: %ld cell%s in %ld pass%s\n",
 	    	exh_cells, (exh_cells == 1) ?"":"s",
 		exh_runs, (exh_runs == 1) ?"":"es");
 	if (maycontradict)
-	    printf("Contradiction Testing: %d tests, %d found\n",
+	    printf("Contradiction Testing: %ld tests, %ld found\n",
 	    	contratests, contrafound);
 	if (!mayprobe)
-	    printf("Backtracking: %d guesses, %d backtracks\n",
+	    printf("Backtracking: %ld guesses, %ld backtracks\n",
 	    	guesses,backtracks);
 	else if (!mergeprobe)
-	    printf("Backtracking: %d probes, %d guesses, %d backtracks\n",
+	    printf("Backtracking: %ld probes, %ld guesses, %ld backtracks\n",
 	    	probes,guesses,backtracks);
 	else
-	    printf("Backtracking: %d probes, %d merges, %d guesses, "
-	    	   "%d backtracks\n", probes,merges,guesses,backtracks);
+	    printf("Backtracking: %ld probes, %ld merges, %ld guesses, "
+	    	   "%ld backtracks\n", probes,merges,guesses,backtracks);
+	if (maycache)
+	    printf("Cache Hits: %ld/%ld (%.1f%%) Adds: %ld  Flushes: %ld\n",
+		    cache_hit, cache_req,
+		    (float)(cache_req ? cache_hit*100/cache_req : 0),
+		    cache_add, cache_flush);
 	printf("Processing Time: %f sec \n",
 		(float)(eclock - sclock)/CLOCKS_PER_SEC);
     }

@@ -21,7 +21,7 @@ char *version= "1.1";
 int verb[NVERB];
 int http= 0;
 int mayprobe= 1, mergeprobe= 1;
-int nlines, probes, guesses, backtracks, merges;
+long nlines, probes, guesses, backtracks, merges;
 
 
 int main(int argc, char **argv)

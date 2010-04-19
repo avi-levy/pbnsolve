@@ -1405,12 +1405,14 @@ bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell)
     if (ncell <= 0) ncell= count_cells(puz, sol, k, i);
 
     if (D)
-	printf("-----------------D%dL%d-LEFT------------------\n",k,i);
+	printf("-----------------%s %d-LEFT------------------\n",
+		CLUENAME(puz->type,k),i);
     left= left_solve(puz, sol, k, i, 1);
     if (left == NULL) return NULL;
 
     if (D)
-	printf("-----------------D%dL%d-RIGHT-----------------\n",k,i);
+	printf("-----------------%s %d-RIGHT-----------------\n",
+		CLUENAME(puz->type,k),i);
     right= right_solve(puz, sol, k, i, ncell, 1);
     if (right == NULL)
     	fail("Left solution but no right solution for %s %d\n",
@@ -1510,14 +1512,28 @@ int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth)
     line_t j;
     color_t z;
     bit_type new, *old;
+    int newsol= 0;
 
     if ((VC && VV) && depth > 0)
     	printf("C: SOLVING %s %d at DEPTH %d\n",
 	    CLUENAME(puz->type,k),i,depth-1);
 
-    col= lro_solve(puz, sol, k, i, ncell);
-
-    if (col == NULL) return 0;
+    /* First try finding the solution in the cache */
+    if (cachelines && (col= line_cache(puz, sol, k, i, ncell)) != NULL)
+    {
+	/* If found a cached solution invalidate old left/right solutions
+	 * They might still be valid, or they might not.
+	 */
+	puz->clue[k][i].lbadb= -1;
+	puz->clue[k][i].rbadb= -1;
+    }
+    else
+    {
+	/* If didn't find a solution from cache, Compute it */
+	col= lro_solve(puz, sol, k, i, ncell);
+	if (col == NULL) return 0;
+	newsol= cachelines;
+    }
 
     if (DW(k,i))
 	printf("L: UPDATING GRID\n");
@@ -1582,6 +1598,9 @@ int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth)
 		    printf("L: CELL %d - BYTE %d\n",j,z);
 	}
     }
+
+    /* If we are caching and computed a new solution, cache it */
+    if (newsol) add_cache(puz, sol, k, i, ncell);
 
     return 1;
 }

@@ -53,7 +53,8 @@
 /* LIMIT COLORS - If LIMITCOLORS is defined, pbnsolve will only be able to
  * handle puzzles with 32 colors or less (maybe 64 if your computer has
  * 64 bit long ints).  If this is not defined unlimited colors can be used,
- * at least in theory.  That's never been tested.
+ * at least in theory.  That's never been tested.  The advantage of limiting
+ * colors is that it improves performance.
  */
 
 #define LIMITCOLORS /**/

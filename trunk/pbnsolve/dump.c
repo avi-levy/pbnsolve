@@ -69,6 +69,19 @@ void dump_bits(FILE *fp, Puzzle *puz, bit_type *bit)
 	    putc(' ', fp);
 }
 
+/* Dump a bit string consisting of len bit_types.  Prints as binary string */
+
+void dump_binary(FILE *fp, bit_type *bit, int len)
+{
+    int i,b;
+    for (i= 0; i < len; i++)
+    {
+	for (b= _bit_intsiz-1; b >= 0; b--)
+	    putc(bit_test(bit+i, b) ? '1' : '0', fp);
+	putc(' ',fp);
+    }
+}
+
 /* Print the current state of a line of the puzzle solution */
 
 void dump_line(FILE *fp, Puzzle *puz, Solution *sol, dir_t k, line_t i)

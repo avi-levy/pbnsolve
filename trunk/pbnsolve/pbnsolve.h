@@ -258,14 +258,15 @@ typedef struct {
 #define VC verb[2]	/* Contradiction Search */
 #define VE verb[3]	/* Try Everything */
 #define VG verb[4]	/* Guessing */
-#define VJ verb[5]	/* Job Management */
-#define VL verb[6]	/* Line Solver Details */
-#define VM verb[7]	/* Merging */
-#define VP verb[8]	/* Probing */
-#define VU verb[9]	/* Undo Information from Job Management */
-#define VS verb[10]	/* Cell State Changes */
-#define VV verb[11]	/* Report with extra verbosity */
-#define VCHAR "ABCEGJLMPUSV"
+#define VH verb[5]	/* Hash */
+#define VJ verb[6]	/* Job Management */
+#define VL verb[7]	/* Line Solver Details */
+#define VM verb[8]	/* Merging */
+#define VP verb[9]	/* Probing */
+#define VU verb[10]	/* Undo Information from Job Management */
+#define VS verb[11]	/* Cell State Changes */
+#define VV verb[12]	/* Report with extra verbosity */
+#define VCHAR "ABCEGHJLMPUSV"
 #define NVERB 12
 
 extern int verb[];
@@ -282,6 +283,8 @@ extern int verb[];
 #define VC 0
 #undef VE
 #define VE 0
+#undef VH
+#define VH 0
 #undef VG
 #define VG 0
 #undef VJ
@@ -320,6 +323,7 @@ extern int checksolution;
 extern int mayexhaust;
 extern int maycontradict;
 extern int contradepth;
+extern int maycache, cachelines;
 
 /* pbnsolve.c functions */
 
@@ -345,6 +349,7 @@ int add_color(Puzzle *puz, char *name, char *rgb, char ch);
 char *cluename(byte type, dir_t k);
 char *CLUENAME(byte type, dir_t k);
 void dump_bits(FILE *fp, Puzzle *puz, bit_type *bits);
+void dump_binary(FILE *fp, bit_type *bit, int len);
 void print_solution(FILE *fp, Puzzle *puz, Solution *sol);
 void dump_pos(FILE *fp, line_t *pos, line_t *len);
 void print_coord(FILE *fp, Puzzle *puz, Cell *cell);
@@ -393,8 +398,8 @@ int backtrack(Puzzle *puz, Solution *sol);
 int newedge(Puzzle *puz, Cell **line, line_t i, bit_type *old, bit_type *new);
 
 /* solve.c functions */
-extern int nlines, guesses, backtracks, probes, merges;
-extern int contratests, contrafound;
+extern long nlines, guesses, backtracks, probes, merges;
+extern long contratests, contrafound;
 int logic_solve(Puzzle *puz, Solution *sol, int contradicting);
 int solve(Puzzle *puz, Solution *sol);
 
@@ -408,7 +413,7 @@ int probe(Puzzle *puz, Solution *sol, line_t *besti, line_t *bestj, color_t *bes
 int contradict(Puzzle *puz, Solution *sol);
 
 /* exhaust.c functions */
-extern int exh_runs, exh_cells;
+extern long exh_runs, exh_cells;
 int try_everything(Puzzle *puz, Solution *sol, int check);
 
 /* http.c functions */
@@ -424,3 +429,9 @@ void merge_cancel(void);
 void merge_guess(void);
 void merge_set(Puzzle *puz, Cell *cell, bit_type *bit);
 int merge_check(Puzzle *puz, Solution *sol);
+
+/* line_cache.c function */
+void init_cache(Puzzle *puz);
+bit_type *line_cache(Puzzle *puz,Solution *sol,dir_t k,line_t i,line_t ncell);
+void add_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell);
+extern long cache_hit, cache_req, cache_add, cache_flush;
