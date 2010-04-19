@@ -92,7 +92,14 @@ extern int fbit_size;
 	 * mask for bit N in it's int
 	 */
 #define	_bit_mask(N) \
-	(1 << ((N) % _bit_intsiz))
+	(((bit_type)1) << ((N) % _bit_intsiz))
+
+
+        /*
+	 * Return a mask with zeros followed by N ones
+	 */
+#define bit_zeroone(N) \
+    	(_bit_1s >> (_bit_intsiz + N))
 
 /*
  * (macros used externally)

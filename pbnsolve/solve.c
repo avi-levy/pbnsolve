@@ -319,7 +319,8 @@ int logic_solve(Puzzle *puz, Solution *sol, int contradicting)
 	    /* Check if puzzle is done */
 	    if (puz->nsolved == puz->ncells) return 1;
 
-	    /* If we are contradicting, don't do the exhaustive test.  Too expensive. */
+	    /* If we are contradicting, don't do the exhaustive test.
+	     * Too expensive. */
 	    if (contradicting) return 0;
 
 	    /* If we have no other algorithm to try, we are stalled */
@@ -404,6 +405,13 @@ int solve(Puzzle *puz, Solution *sol)
 	    
 	    /* Shut down the exhaustive search once we start searching */
 	    if (maylinesolve) mayexhaust= 0;
+	    
+	    /* Turn on caching when we first start searching */
+	    if (maycache && !cachelines)
+	    {
+		cachelines= 1;
+		init_cache(puz);
+	    }
 
 	    if (mayprobe)
 	    {

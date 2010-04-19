@@ -1,4 +1,4 @@
-PBNSOLVE VERSION 1.06
+PBNSOLVE VERSION 1.07
 Jan Wolter
 
 This software is open source, copyrighted by Jan Wolter, but released under
@@ -81,6 +81,11 @@ Command line options:
 	in that case, unless you give the -t flag and notice a difficulty
 	rating of 100.
 
+        Which outputs are possible depends to some extent to the algorithms
+	selected with the -a flag.  "depth-2" occurs only if algorithm C
+	(Contradiction Check) is enabled.  "stalled occurs only if no
+        search algorithm is enabled (G, P or M).
+
 	Note that with the -u or -c flags, we will always get one of
 	'unique' or 'multiple' if we find any solution at all.  If the puzzle
 	can be solved by line and color logic alone, it will be flagged
@@ -111,7 +116,7 @@ Command line options:
 
         Use the listed algorithms.  Possible values are listed below.  The
 	order in which the options are given does not determine the order
-	in which they are tried.  Default is -aLEP.
+	in which they are tried.  Default is -aLHEP.
 
 	   L - LRO Line Solving.  This is normally the first thing we try,
 	       examining rows and columns one at a time, comparing the leftmost
@@ -119,6 +124,14 @@ Command line options:
 	       position and marking all cells that fall in the same block
 	       either way.  Keep doing this until the puzzle is done or it
 	       we stall.
+
+           H - Cache Line Solver Solutions.  This is a supplement to the
+               Line solver.  It stores line solver results in a hash table
+	       so they can be reused it the same situation comes up again,
+	       which occurs surprisingly often.  Cache hit rates of 80% to
+               90% are not unusual with large puzzles, so this can speed
+	       up the solver substantially, reducing run times by 30% to
+               50%, but it increases memory consumption substantially.
 
 	   E - Exhaustive Check.  After line solving stalls, but before 
 	       trying anything else, double check every cell on the board
