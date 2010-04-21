@@ -87,7 +87,9 @@ static LineHash *cache[2];
 
 /* This attaches a line ID to each row and each column.  Normally each one
  * would have a different ID number, but if two lines are the same length
- * and have the same clues, then they have the same clue id.
+ * and have the same clues, then they have the same clue id.  If one clue
+ * is the same as another clue reversed, then the first one found gets a
+ * positive clue id, and the second gets the negative of that value.
  */
 static line_t *clid[2];
 
@@ -101,7 +103,10 @@ static bit_type *col;
 /* Forward declarations of some functions */
 void compress_line(Puzzle *puz, Solution *sol,
 		   dir_t k, line_t i, line_t ncell, bit_type *out);
+void rev_compress_line(Puzzle *puz, Solution *sol,
+		   dir_t k, line_t i, line_t ncell, bit_type *out);
 void uncompress_line(bit_type *in, int ncell, int ncolor, bit_type *out);
+void rev_uncompress_line(bit_type *in, int ncell, int ncolor, bit_type *out);
 void dump_comp(bit_type *c, int ncell, int ncolor);
 
 /* Hash statistics */
@@ -157,24 +162,36 @@ void empty_hash(LineHash *hash)
 
 /* MATCH_CLUE:  Does any clue in direction k, with an index less than n
  * match the given clue?  If not return 0.  If so return the clue id of
- * that clue.
+ * that clue.  If it matches a reversed clue, then return the negative of
+ * the clue id.
  */
 
 int match_clue(Clue *clue, Puzzle *puz, int k, int n)
 {
     Clue *c;
     int i, j;
+    int len;
 
     for (i= 0; i < n; i++)
     {
 	c= &(puz->clue[k][i]);
-	if (c->n != clue->n) goto next;
-	for (j= 0; j < c->n; j++)
+	len= c->n;
+	if (len != clue->n) goto next;
+	/* Try matching two clues */
+	for (j= 0; j < len; j++)
 	{
 	    if (clue->length[j] != c->length[j] ||
-		clue->color[j] != c->color[j]) goto next;
+		clue->color[j] != c->color[j]) goto rev;
 	}
 	return clid[k][i];
+rev:	/* Try matching to reverse of clue */
+	if (len < 2) goto next;
+	for (j= 0; j < len; j++)
+	{
+	    if (clue->length[len-j-1] != c->length[j] ||
+		clue->color[len-j-1] != c->color[j]) goto next;
+	}
+	return -clid[k][i];
 next:;
     }
     return 0;
@@ -342,15 +359,18 @@ bit_type *line_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i,
     if (ncell <= 0) ncell= count_cells(puz, sol, k, i);
 
     /* Compress the current state of the line */
-    compress_line(puz, sol, k, i, ncell, tmp);
+    if (this_clid > 0)
+	compress_line(puz, sol, k, i, ncell, tmp);
+    else
+	rev_compress_line(puz, sol, k, i, ncell, tmp);
     if (VH)
     {
-	printf("H: clueid=%d compressed line: ",clid[k][i]);
+	printf("H: clueid=%d compressed line: ",this_clid);
 	dump_comp(tmp, ncell, puz->ncolor);
     }
 
     /* Look for a match in the hash table */
-    index= hash_find(cache[k], clid[k][i], tmp);
+    index= hash_find(cache[k], abs(this_clid), tmp);
 
     if (index < 0)
       	/* Table is full - should never happen */
@@ -365,7 +385,10 @@ bit_type *line_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i,
     }
 
     /* Uncompress the solution */
-    uncompress_line(newstate(cache[k],e), ncell, puz->ncolor, col);
+    if (this_clid > 0)
+	uncompress_line(newstate(cache[k],e), ncell, puz->ncolor, col);
+    else
+	rev_uncompress_line(newstate(cache[k],e), ncell, puz->ncolor, col);
     if (VH)
     {
 	printf("H: uncompressed solution:\n");
@@ -406,9 +429,12 @@ void add_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell)
     if (ncell <= 0) ncell= count_cells(puz, sol, k, i);
 
     e= HashSlot(cache[k], cache[k]->lastslot);
-    clueid(e)= clid[k][i];
+    clueid(e)= abs(clid[k][i]);
     memmove(oldstate(e), tmp, cache[k]->len * sizeof(bit_type));
-    compress_line(puz, sol, k, i, ncell, newstate(cache[k],e));
+    if (clid[k][i] > 0)
+	compress_line(puz, sol, k, i, ncell, newstate(cache[k],e));
+    else
+	rev_compress_line(puz, sol, k, i, ncell, newstate(cache[k],e));
     if (VH)
     {
 	printf("H: added in slot %d:\n", cache[k]->lastslot);
@@ -478,6 +504,61 @@ void compress_line(Puzzle *puz, Solution *sol,
 }
 
 
+/* REV_COMPRESS_LINE: This is the same as compress_line, except we reverse
+ * the order of the cells (but not the bit strings that make up the cells).
+ * This differs from rev_compress_line by only one line of code, but having
+ * two versions gets us more speed.
+ */
+
+void rev_compress_line(Puzzle *puz, Solution *sol,
+		   dir_t k, line_t i, line_t ncell, bit_type *out)
+{
+    int j, z, m;
+    Cell **cell= sol->line[k][i];
+    int bi= 0;            /* Currently storing into out[i] */
+    int bn= _bit_intsiz;  /* First free bit in out[i] */
+
+    out[bi]= 0;
+
+#ifdef LIMITCOLORS
+    z= 0;
+#endif
+
+    for (j= ncell-1; j >= 0; j--)
+    {
+#ifdef LIMITCOLORS
+	m= puz->ncolor;
+#else
+	for (z= 0; z < fbit_size; i++)
+	{
+	    /* number of bits we want from cell[j]->bit[z] */
+	    m= (z == fbit_size-1) ? puz->ncolor % _bit_intsize : _bit_intsize;
+
+#endif
+	    if (m > bn)
+	    {
+		out[bi]|= cell[j]->bit[z] >> (m - bn);
+		m-= bn;
+		out[++bi]= 0;
+		bn= _bit_intsiz;
+	    }
+	    if (m > 0 && m <= bn)
+	    {
+		out[bi]|= cell[j]->bit[z] << (bn - m);
+		bn-= m;
+		if (bn == 0)
+		{
+		    out[++bi]= 0;
+		    bn= _bit_intsiz;
+		}
+	    }
+#ifndef LIMITCOLORS
+	}
+#endif
+    }
+}
+
+
 void uncompress_line(bit_type *in, int ncell, int ncolor, bit_type *out)
 {
     int i,z;
@@ -486,6 +567,46 @@ void uncompress_line(bit_type *in, int ncell, int ncolor, bit_type *out)
     int bn= _bit_intsiz;
 
     for (i= 0; i < ncell; i++)
+    {
+	b= colbit(i);
+	for (z= 0; z < fbit_size - 1; z++)
+	{
+	    if (bn == _bit_intsiz)
+	    {
+		b[z]= in[bi];
+		bi++;
+	    }
+	    else
+	    {
+		b[z]= in[bi] << (_bit_intsiz - bn);
+		bi++;
+		b[z]|= in[bi] >> bn;
+	    }
+	}
+	if (ncolor <= bn)
+	{
+	    b[z]= (in[bi] >> (bn - ncolor)) & bit_zeroone(ncolor);
+	    bn-= ncolor;
+	}
+	else
+	{
+	    b[z]= ((in[bi] << (ncolor - bn)) |
+		   (in[++bi] >> (_bit_intsiz - ncolor + bn))
+		   & bit_zeroone(ncolor));
+	    bn+= _bit_intsiz - ncolor;
+	}
+    }
+}
+
+
+void rev_uncompress_line(bit_type *in, int ncell, int ncolor, bit_type *out)
+{
+    int i,z;
+    bit_type *b;
+    int bi= 0;
+    int bn= _bit_intsiz;
+
+    for (i= ncell-1; i >= 0; i--)
     {
 	b= colbit(i);
 	for (z= 0; z < fbit_size - 1; z++)
