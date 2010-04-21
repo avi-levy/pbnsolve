@@ -1,4 +1,4 @@
-PBNSOLVE VERSION 1.07
+PBNSOLVE VERSION 1.08
 Jan Wolter
 
 This software is open source, copyrighted by Jan Wolter, but released under
@@ -157,7 +157,10 @@ Command line options:
 	       we find either a solution or a contradiction, and then back
 	       tracking to the last guess to try something else.  This was
 	       the default in older versions of pbnsolve.  If this is set,
-	       P and M are unset.
+	       P and M are unset.  You can further choose between three
+	       different heuristic functions, by suffixing the flag with
+               a digit, G1, G2, or G3.  None are terribly good.  G3 is the
+	       default.
 
 	   P - Probing.  Similar to guessing but instead of using heuristics
 	       to choose a guess, we actually explore the consequences of

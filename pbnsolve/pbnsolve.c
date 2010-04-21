@@ -64,6 +64,19 @@ void setcpulimit(int secs)
 
 int setalg(char ch)
 {
+    static char lastch;
+
+    if (isdigit(ch) && lastch != 0)
+    {
+	int n= ch - '0';
+	switch (lastch)
+	{
+	case 'G': return set_guess(n);
+	}
+	return 0;
+    }
+    lastch= ch;
+
     switch (ch)
     {
     case 'L':
@@ -677,7 +690,7 @@ int main(int argc, char **argv)
     exit(0);
 
 usage:
-    fprintf(stderr,"usage: %s [-cdehu] [-s#] [-n#] [-x#] [-aLEGPM] [-vABEGJLMPUSV] [<filename>]\n",
+    fprintf(stderr,"usage: %s [-cdehu] [-s#] [-n#] [-x#] [-aLEHGPM] [-vABEGJLMPUSV] [<filename>]\n",
     	argv[0]);
     exit(1);
 }

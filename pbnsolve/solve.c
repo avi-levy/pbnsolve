@@ -25,27 +25,22 @@
 #endif
 
 
-#ifdef GR_SIMPLE
 /* Simple version.  Just choose cells based on neighborlyness */
-int ratecell(Puzzle *puz, Solution *sol, line_t i, line_t j)
+float ratecell_simple(Puzzle *puz, Solution *sol, line_t i, line_t j)
 {
-    return 0;
+    return 0.0;
 }
-#endif
 
-#ifdef GR_ADHOC
 /* First 'smart' version.  Prefer low slack, and low numbers of clues. */
-int ratecell(Puzzle *puz, Solution *sol, line_t i, line_t j)
+float ratecell_adhoc(Puzzle *puz, Solution *sol, line_t i, line_t j)
 {
     int si= puz->clue[0][i].slack + 2*puz->clue[0][i].n;
     int sj= puz->clue[1][j].slack + 2*puz->clue[1][j].n;
-    return (si < sj) ? 3*si+sj : 3*sj+si;
+    return (float)((si < sj) ? 3*si+sj : 3*sj+si);
 }
-#endif
 
-#ifdef GR_MATH
 /* Mathematical version.  Prefer to work on rows with fewer solutions. */
-float ratecell(Puzzle *puz, Solution *sol, line_t i, line_t j)
+float ratecell_math(Puzzle *puz, Solution *sol, line_t i, line_t j)
 {
     float si= bicoln(puz->clue[0][i].slack + puz->clue[0][i].n,
 		puz->clue[0][i].n);
@@ -53,7 +48,28 @@ float ratecell(Puzzle *puz, Solution *sol, line_t i, line_t j)
 		puz->clue[1][j].n);
     return (si < sj) ? si : sj;
 }
-#endif
+
+/* This points the the function to use to rate cells when guessing (not when
+ * probing)
+ */
+static float (*ratecell)(Puzzle *, Solution *, line_t, line_t)= &ratecell_math;
+
+/* SET_GUESS - set the guessing algorithm used for heuristic search (not
+ * probing) to one of the above function, as specified by an index number
+ * passed in.  Returns 1 on success, 0 otherwise.
+ */
+
+int set_guess(int n)
+{
+    switch (n)
+    {
+    case 1: ratecell= &ratecell_simple; break;
+    case 2: ratecell= &ratecell_adhoc; break;
+    case 3: ratecell= &ratecell_math; break;
+    default: return 0;
+    }
+    return 1;
+}
 
 /* Count neighbors of a cell which are either solved or edges */
 
@@ -105,7 +121,7 @@ Cell *pick_a_cell(Puzzle *puz, Solution *sol)
 
 	    if (v >= maxv)
 	    {
-		s= (float)ratecell(puz,sol,i,j);
+		s= (*ratecell)(puz,sol,i,j);
 
 		if (v > maxv || s < minrate)
 		{
