@@ -1,4 +1,7 @@
 version 1.08 -
+  - Modified caching algorithm so solutions for lines with clues that are
+    the reverse of each other are cached together.  This ended up having
+    very little effect on performance.
   - Can now select between heuristic search algorithms from the command line,
     using the -aG1, -aG2, or -aG3 flags.
 

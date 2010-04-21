@@ -24,7 +24,7 @@
 #include "bitstring.h"
 
 /* Types */
-typedef short line_t;	/* a row/column number */
+typedef short line_t;	/* a row/column number - must be signed */
 typedef char color_t;   /* a color number, an index into a color bit string */
 typedef char dir_t;     /* A direction */
 typedef char byte;	/* various small numbers */
