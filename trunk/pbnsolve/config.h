@@ -1,14 +1,5 @@
 /* Configuration Settings */
 
-/* GUESS RATING ALGORITHM.  When we get stuck, we need to choose a square to
- * guess on.  Different algorithms have been implemented to choose a square.
- * Define one of the following.  These are used only if probing is not used.
- */
-
-/* #define GR_SIMPLE /**/
-/* #define GR_ADHOC /**/
-#define GR_MATH /**/
-
 /* GUESS COLOR ALGORITHM.  When we make a guess, what color should it be?
  * Define one of the following.  These are used only if probing is not used.
  */

@@ -24,6 +24,10 @@
 #define WC(i,j) 0
 #endif
 
+#ifndef NO_VQ
+long nprobe= 0;
+#endif
+
 /* SCRATCHPAD - An array of bitstrings for every cell.  Every color that is
  * set for a cell in the course of the current probe sequence is ORed into it.
  * Any setting which has been part of a previous probe will not be probed on,
@@ -46,7 +50,7 @@ void init_probepad(Puzzle *puz)
 
 
 /* Search energetically for the guess that lets us make the most progress
- * toward solving the puzzle, but trying lots of guesses and search on each
+ * toward solving the puzzle, by trying lots of guesses and search on each
  * until it stalls.
  *
  * Normally it returns 0, with besti,bestj,bestc containing our favorite guess.
@@ -71,6 +75,9 @@ int probe(Puzzle *puz, Solution *sol,
     if (VP) printf("P: STARTING PROBE SEQUENCE\n");
     init_probepad(puz);
     probing= 1;
+#ifndef NO_VQ
+    nprobe++;
+#endif
 
     for (i= 0; i < sol->n[0]; i++)
     {
@@ -109,9 +116,12 @@ int probe(Puzzle *puz, Solution *sol,
 			{
 			    /* Probe complete - save it's rating and undo it */
 			    nleft= puz->ncells - puz->nsolved;
-			    if (VP || WC(i,j))
-				printf("P: PROBE ON (%d,%d)%d COMPLETE WITH "
-				    "%d CELLS LEFT\n", i,j,c,nleft);
+			    if (VQ)
+				printf("P: PROBE #%d ON (%d,%d)%d COMPLETE "
+				    "WITH %d CELLS LEFT\n", nprobe,i,j,c,nleft);
+			    else if (VP || WC(i,j))
+				printf("P: PROBE ON (%d,%d)%d COMPLETE "
+				    "WITH %d CELLS LEFT\n", i,j,c,nleft);
 			    if (nleft < bestnleft)
 			    {
 				bestnleft= nleft;

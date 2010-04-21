@@ -1,3 +1,7 @@
+version 1.08 -
+  - Can now select between heuristic search algorithms from the command line,
+    using the -aG1, -aG2, or -aG3 flags.
+
 version 1.07 - Apr 18, 2010
   - Add caching of line solutions.  Defaults on.
 

@@ -263,11 +263,12 @@ typedef struct {
 #define VL verb[7]	/* Line Solver Details */
 #define VM verb[8]	/* Merging */
 #define VP verb[9]	/* Probing */
-#define VU verb[10]	/* Undo Information from Job Management */
-#define VS verb[11]	/* Cell State Changes */
-#define VV verb[12]	/* Report with extra verbosity */
-#define VCHAR "ABCEGHJLMPUSV"
-#define NVERB 12
+#define VQ verb[10]	/* Probing statistics */
+#define VU verb[11]	/* Undo Information from Job Management */
+#define VS verb[12]	/* Cell State Changes */
+#define VV verb[13]	/* Report with extra verbosity */
+#define VCHAR "ABCEGHJLMPQUSV"
+#define NVERB 13
 
 extern int verb[];
 
@@ -293,6 +294,9 @@ extern int verb[];
 #define VM 0
 #undef VP
 #define VP 0
+#undef VQ
+#define VQ 0
+#define NO_VQ
 #undef VU
 #define VU 0
 #undef VS
@@ -400,6 +404,7 @@ int newedge(Puzzle *puz, Cell **line, line_t i, bit_type *old, bit_type *new);
 /* solve.c functions */
 extern long nlines, guesses, backtracks, probes, merges;
 extern long contratests, contrafound;
+int set_guess(int n);
 int logic_solve(Puzzle *puz, Solution *sol, int contradicting);
 int solve(Puzzle *puz, Solution *sol);
 
