@@ -48,6 +48,131 @@ void init_probepad(Puzzle *puz)
     	memset(probepad, 0, puz->ncells * fbit_size * sizeof(bit_type));
 }
 
+/* PROBE_CELL - Do a sequence of probes on a cell.  We normally do one probe
+ * on each possible color for the cell.  <cell> points and the cell, and <i>
+ * and <j> are its coordinates.  <bestnleft> points to the nleft value of the
+ * best guess found previously, and <bestc> points to the color of that guess.
+ * The return code tells the result:
+ *
+ *   -2   A guess solved the puzzle.
+ *   -1   A necessary consequence was found, either by contradiction or
+ *        merging.  Either way, the cell has been set and we are ready to
+ *        resume logic solving.
+ *    0   No guess was found that was better than <bestnleft>
+ *   >0   A guess was found that was better than <bestnleft>.  Both
+ *        <bestnleft> and <bestc> have been updated with the new value.
+ */
+
+int probe_cell(Puzzle *puz, Solution *sol, Cell *cell, line_t i, line_t j,
+	int *bestnleft, color_t *bestc)
+{
+    color_t c;
+    int rc;
+    int nleft;
+    int foundbetter= 0;
+
+    merging= mergeprobe;
+
+    /* For each possible color of the cell */
+    for (c= 0; c < puz->ncolor; c++)
+    {
+	if (may_be(cell, c))
+	{
+	    if (bit_test(propad(cell),c))
+	    {
+		/* We can skip this probe because it was a consequence
+		 * of a previous probe.  However, if we do that, then
+		 * we can't do merging on this cell.
+		 */
+		if (merging) merge_cancel();
+	    }
+	    else
+	    {
+		/* Found a candidate color - go probe on it */
+		if (VP || VB || WC(i,j))
+		    printf("P: PROBING (%d,%d) COLOR %d\n", i,j,c);
+		probes++;
+
+		if (merging) merge_guess();
+
+		guess_cell(puz,sol,cell,c);
+		rc= logic_solve(puz, sol, 0);
+
+		if (rc == 0)
+		{
+		    /* Probe complete - save it's rating and undo it */
+		    nleft= puz->ncells - puz->nsolved;
+		    if (VQ)
+			printf("P: PROBE #%d ON (%d,%d)%d COMPLETE "
+			    "WITH %d CELLS LEFT\n", nprobe,i,j,c,nleft);
+		    else if (VP || WC(i,j))
+			printf("P: PROBE ON (%d,%d)%d COMPLETE "
+			    "WITH %d CELLS LEFT\n", i,j,c,nleft);
+		    if (nleft < *bestnleft)
+		    {
+			*bestnleft= nleft;
+			*bestc= c;
+			foundbetter++;
+		    }
+		    if (VP)
+			printf("P: UNDOING PROBE\n");
+
+		    undo(puz, sol, 0);
+		}
+		else if (rc < 0)
+		{
+		    /* Found a contradiction - what luck! */
+		    if (VP)
+			printf("P: PROBE ON (%d,%d)%d "
+				"HIT CONTRADICTION\n", i,j,c);
+		    
+		    if (merging) merge_cancel();
+		    guesses++;
+
+		    /* Backtrack to the guess point, invert that */
+		    if (backtrack(puz, sol))
+		    {
+			/* Nothing to backtrack to.  This should never
+			 * happen, because we made a guess a few lines
+			 * ago.
+			 */
+			printf("ERROR: "
+			    "Could not backtrack after probe\n");
+			exit(1);
+		    }
+		    if (VP)
+		    {
+			print_solution(stdout,puz,sol);
+			dump_history(stdout, puz, VV);
+		    }
+		    probing= 0;
+		    return -1;
+		}
+		else
+		{
+		    /* by wild luck, we solved it */
+		    if (merging) merge_cancel();
+		    probing= 0;
+		    return -2;
+		}
+	    }
+	}
+    }
+
+    /* Finished all probes on a cell.  Check if there is anything that
+     * was a consequence of all alternatives.  If so, set that as a
+     * fact, cancel probing and proceed.
+     */
+
+    if (merging && merge_check(puz, sol))
+    {
+	merges++;
+	probing= 0;
+	return -1;
+    }
+    return foundbetter;
+}
+
 
 /* Search energetically for the guess that lets us make the most progress
  * toward solving the puzzle, by trying lots of guesses and search on each
@@ -65,11 +190,13 @@ void init_probepad(Puzzle *puz)
 int probe(Puzzle *puz, Solution *sol,
     line_t *besti, line_t *bestj, color_t *bestc)
 {
-    line_t i, j;
+    line_t i, j, k;
     color_t c;
     Cell *cell;
     int rc, neigh;
-    int nleft, bestnleft= INT_MAX;
+    int bestnleft= INT_MAX;
+    line_t ci,cj;
+    Hist *h;
 
     /* Starting a new probe sequence - initialize stuff */
     if (VP) printf("P: STARTING PROBE SEQUENCE\n");
@@ -79,116 +206,77 @@ int probe(Puzzle *puz, Solution *sol,
     nprobe++;
 #endif
 
-    for (i= 0; i < sol->n[0]; i++)
+    if (probelevel > 1)
     {
-	for (j= 0; (cell= sol->line[0][i][j]) != NULL; j++)
+	/* Scan through history, probing on cells adjacent to cells changed
+	 * since the last guess.
+	 */
+	for (k= puz->nhist - 1; k >= 0; k--)
 	{
-	    if (cell->n < 2) continue;
-	    neigh= count_neighbors(sol, i, j);
-	    if (neigh < 2) continue;
-	    merging= mergeprobe;
+	    h= HIST(puz,k);
+	    ci= h->cell->line[D_ROW];
+	    cj= h->cell->line[D_COL];
 
-	    for (c= 0; c < puz->ncolor; c++)
+	    /* Check the neighbors */
+	    for (neigh= 0; neigh < 4; neigh++)
 	    {
-		if (may_be(cell, c))
+		/* Find a neighbor, making sure it isn't off edge of grid */
+		switch (neigh)
 		{
-		    if (bit_test(propad(cell),c))
-		    {
-			/* We can skip this probe because it was a consequence
-			 * of a previous probe.  However, if we do that, then
-			 * we can't do merging on this cell.
-			 */
-		    	if (merging) merge_cancel();
-		    }
-		    else
-		    {
-			/* Found a cell - go probe on it */
-			if (VP || VB || WC(i,j))
-			    printf("P: PROBING (%d,%d) COLOR %d\n", i,j,c);
-			probes++;
+		case 0: if (ci == 0) continue;
+			i= ci - 1; j= cj; break;
+		case 1: if (ci == sol->n[D_ROW]-1) continue;
+			i= ci+1; j= cj; break;
+		case 2: if (cj == 0) continue;
+			i= ci; j= cj - 1; break;
+		case 3: if (sol->line[D_ROW][ci][cj+1] == NULL) continue;
+			i= ci; j= cj + 1; break;
+		}
+		cell= sol->line[D_ROW][i][j];
 
-			if (merging) merge_guess();
+		/* Skip solved cells */
+		if (cell->n < 2) continue;
 
-			guess_cell(puz,sol,cell,c);
-			rc= logic_solve(puz, sol, 0);
-
-			if (rc == 0)
-			{
-			    /* Probe complete - save it's rating and undo it */
-			    nleft= puz->ncells - puz->nsolved;
-			    if (VQ)
-				printf("P: PROBE #%d ON (%d,%d)%d COMPLETE "
-				    "WITH %d CELLS LEFT\n", nprobe,i,j,c,nleft);
-			    else if (VP || WC(i,j))
-				printf("P: PROBE ON (%d,%d)%d COMPLETE "
-				    "WITH %d CELLS LEFT\n", i,j,c,nleft);
-			    if (nleft < bestnleft)
-			    {
-				bestnleft= nleft;
-				*besti= i;
-				*bestj= j;
-				*bestc= c;
-			    }
-			    if (VP)
-				printf("P: UNDOING PROBE\n");
-
-			    undo(puz, sol, 0);
-			}
-			else if (rc < 0)
-			{
-			    /* Found a contradiction - what luck! */
-			    if (VP)
-				printf("P: PROBE ON (%d,%d)%d "
-					"HIT CONTRADICTION\n", i,j,c);
-			    
-			    if (merging) merge_cancel();
-			    guesses++;
-
-			    /* Backtrack to the guess point, invert that */
-			    if (backtrack(puz, sol))
-			    {
-				/* Nothing to backtrack to.  This should never
-				 * happen, because we made a guess a few lines
-				 * ago.
-				 */
-				printf("ERROR: "
-				    "Could not backtrack after probe\n");
-				exit(1);
-			    }
-			    if (VP)
-			    {
-				print_solution(stdout,puz,sol);
-				dump_history(stdout, puz, VV);
-			    }
-			    probing= 0;
-			    return -1;
-			}
-			else
-			{
-			    /* by wild luck, we solved it */
-			    if (merging) merge_cancel();
-			    probing= 0;
-			    return 1;
-			}
-		    }
+		/* Test solve with each possible color */
+		rc= probe_cell(puz, sol, cell, i, j, &bestnleft, bestc);
+		if (rc < 0)
+		    return (rc == -2) ? 1 : -1;
+		if (rc > 0)
+		{
+		    *besti= i;
+		    *bestj= j;
 		}
 	    }
 
-	    /* Finished all probes on a cell.  Check if there is anything that
-	     * was a consequence of all alternatives.  If so, set that as a
-	     * fact, cancel probing and proceed.
-	     */
-
-	    if (merging && merge_check(puz, sol))
-	    {
-	    	merges++;
-		probing= 0;
-		return -1;
-	    }
-
+	    /* Stop if we reach the cell that was our last guess point */
+	    if (h->branch) break;
 	}
     }
-    stop:;
+
+    /* Scan through all cells, probing on cells with 2 or more solved neighbors
+     */
+    for (i= 0; i < sol->n[D_ROW]; i++)
+    {
+	for (j= 0; (cell= sol->line[D_ROW][i][j]) != NULL; j++)
+	{
+	    /* Skip solved cells */
+	    if (cell->n < 2) continue;
+
+	    /* Skip cells with less than two solved neighbors */
+	    neigh= count_neighbors(sol, i, j);
+	    if (neigh < 2) continue;
+
+	    /* Test solve with each possible color */
+	    rc= probe_cell(puz, sol, cell, i, j, &bestnleft, bestc);
+	    if (rc < 0)
+		return (rc == -2) ? 1 : -1;
+	    if (rc > 0)
+	    {
+		*besti= i;
+		*bestj= j;
+	    }
+	}
+    }
 
     /* completed probing all cells - select best as our guess */
     if (bestnleft == INT_MAX)

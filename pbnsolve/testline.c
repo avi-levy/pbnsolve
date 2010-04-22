@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-char *version= "1.1";
+char *version= "1.0";
 
 #include "pbnsolve.h"
 #include <time.h>
