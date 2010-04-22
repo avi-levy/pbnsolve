@@ -1,8 +1,8 @@
-version 1.08 -
+version 1.08 - Apr 22, 2010
   - Added probing on all neighbors of cells changed since the last probe.  This
-    is another idea from the Ben Gurion University project.  Gives us substantial
-    performance gains on many puzzles, and mild performance loses on a few.
-    The old probing algorithm can be selected by -aP1.  This is -aP2.
+    is another idea from the Ben Gurion University project.  Gives us
+    substantial performance gains on many puzzles, and mild performance loses
+    on a few.  The old probing algorithm can be selected by -aP1.  This is -aP2.
   - Can now select between heuristic search algorithms from the command line,
     using the -aG1, -aG2, or -aG3 flags.
   - Modified caching algorithm so solutions for lines with clues that are
@@ -10,8 +10,8 @@ version 1.08 -
     very little effect on performance.
 
 version 1.07 - Apr 18, 2010
-  - Add caching of line solutions. This idea comes from the Ben Gurion University
-    Solver project.  Works very well.  Defaults on.
+  - Add caching of line solutions. This idea comes from the Ben Gurion
+    University Solver project.  Works very well.  Defaults on.
 
 version 1.06 - Jan 7, 2010
   - Better output in case of puzzle with no solutions.
