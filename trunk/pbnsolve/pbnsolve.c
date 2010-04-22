@@ -33,6 +33,7 @@ int checkunique= 0;
 int checksolution= 0;
 int cachelines= 0;
 int http= 0, terse= 0;
+int probelevel= 2;
 
 long nlines, probes, guesses, backtracks, merges;
 long exh_runs, exh_cells;
@@ -72,6 +73,7 @@ int setalg(char ch)
 	switch (lastch)
 	{
 	case 'G': return set_guess(n);
+	case 'P': probelevel= n; return 1;
 	}
 	return 0;
     }

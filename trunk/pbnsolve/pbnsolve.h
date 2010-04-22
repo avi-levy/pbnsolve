@@ -328,6 +328,7 @@ extern int mayexhaust;
 extern int maycontradict;
 extern int contradepth;
 extern int maycache, cachelines;
+extern int probelevel;
 
 /* pbnsolve.c functions */
 
