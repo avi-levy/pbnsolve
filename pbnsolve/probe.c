@@ -444,6 +444,26 @@ void probe_stats(void)
 }
 
 
+/* Return the fraction of probe sequences that have have ended in making
+ * a guess (ie, have not found a contradiction or a solution).
+ */
+float probe_rate(void)
+{
+    int i,n;
+    float rate;
+    static long lastn= 0;
+    static long lastnprobe= 0;
+
+    for (i= 0; i < N_PRBSRC; i++)
+	n+= probeseq_res[PRBRES_BEST][i];
+
+    rate= (float)(n-lastn)/(float)(nprobe-lastnprobe);
+    lastn= n;
+    lastnprobe= nprobe;
+    return rate;
+}
+
+
 /* SET_PROBING - set the probing algorithms to use */
 
 int set_probing(int n)

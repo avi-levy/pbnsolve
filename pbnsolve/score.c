@@ -21,8 +21,8 @@
 
 #include "pbnsolve.h"
 
-int count_colors= 0;	/* Should we count colors in each line? */
-int score_adjust= 0;	/* Subtraction from line score when cell is solved */
+int count_colors= 1;	/* Should we count colors in each line? */
+int score_adjust= 1;	/* Subtraction from line score when cell is solved */
 
 
 /* ----------------- LINE SCORE INITIALIZATION FUNCTIONS ----------------- */
@@ -114,7 +114,7 @@ cluename(puz->type,k),i,clue->slack,clue->n,clue->linelen,
  */
 
 static float (*line_score)(Puzzle *puz, Solution *sol, dir_t k, line_t i)=
-	&line_score_math;
+	&line_score_simpson;
 
 
 /* ------------ CELL RATING FUNCTIONS ------------ */
@@ -190,9 +190,9 @@ float cell_score_neighbor(Puzzle *puz, Solution *sol, line_t i, line_t j)
  */
 
 float (*cell_score_1)(Puzzle *, Solution *, line_t, line_t)=
-	&cell_score_neighbor;
+	&cell_score_sum;
 float (*cell_score_2)(Puzzle *, Solution *, line_t, line_t)=
-	&cell_score_min;
+	NULL;
 
 
 /* ------------ COLOR SELECTION FUNCTIONS ------------ */
@@ -331,7 +331,7 @@ color_t pick_color_prob(Puzzle *puz, Solution *sol, Cell *cell)
 /* This points to the pick_color function currently being used */
 
 color_t (*pick_color)(Puzzle *puz, Solution *sol, Cell *cell)=
-	&pick_color_contrast;
+	&pick_color_prob;
 
 /* ---------------------------------------------------------------- */
 
@@ -550,7 +550,7 @@ int set_scoring_rule(int n)
 	return 1;
 
     case 4: 
-	/* Simpson's algorithm */
+	/* Simpson's algorithm - approximately */
 	cell_score_1= &cell_score_sum;
 	cell_score_2= NULL;
 	line_score= &line_score_simpson;

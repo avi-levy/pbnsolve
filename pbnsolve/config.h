@@ -24,6 +24,18 @@
 
 #define NICENESS /**/
 
+/* PLOD/SPRINT MODE - If both the hueristic and probing search strategies are
+ * enabled, then we use a plod/sprint mode, where we start out probing.  If
+ * we reach a point where PLOD_INIT probes have failed to find a contradiction
+ * (or solve the puzzle), then we switch over to using heuristic search for
+ * the next SPRINT_LENGTH times when logic failing stalls.  The we revert
+ * to probing, until PLOD_LENGTH probes fail to find a contradiction and
+ * the cycle repeats.
+ */
+
+#define PLOD_INIT 40
+#define SPRINT_LENGTH 4000
+#define PLOD_LENGTH 40
 
 /* DUMP FILE - IF DUMP_FILE is defined, a copy of the input is dumped to that
  * file before starting.  Mostly useful for debugging CGI versions of the
