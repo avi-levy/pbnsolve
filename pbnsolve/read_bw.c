@@ -69,7 +69,6 @@ int read_bw_clues(Clue *clue, line_t nclue)
 	clue[i].length= (line_t *)malloc(clue[i].s * sizeof(line_t));
 	clue[i].color= (color_t *)malloc(clue[i].s * sizeof(color_t));
 	clue[i].jobindex= -1;
-	clue[i].slack= -1;
 #ifdef LINEWATCH
 	clue[i].watch= 0;
 #endif
@@ -143,7 +142,6 @@ void init_clues(Puzzle *puz, int nrow, int ncol)
     puz->n[D_ROW]= nrow;
     puz->n[D_COL]= ncol;
     puz->ncells= nrow*ncol;
-    puz->nsolved= 0;
 
     puz->clue[D_ROW]= (Clue *)malloc(nrow*sizeof(Clue));
     puz->clue[D_COL]= (Clue *)malloc(ncol*sizeof(Clue));
@@ -295,7 +293,6 @@ Puzzle *load_non_puzzle()
     }
 
     puz->ncells= puz->n[D_ROW] * puz->n[D_COL];
-    puz->nsolved= 0;
 
     return puz;
 }
@@ -358,7 +355,6 @@ Puzzle *load_lp_puzzle()
 	    clue[i].color= (color_t *)malloc(clue[i].s*sizeof(color_t));
 	}
 	clue[i].jobindex= -1;
-	clue[i].slack= -1;
 #ifdef LINEWATCH
 	clue[i].watch= 0;
 #endif

@@ -115,10 +115,13 @@ typedef struct solution_list {
 
 typedef struct {
     line_t n,s;		/* Number of clues and size of array */
-    line_t *length;	/* Array of clue lengths */
-    color_t *color;	/* Array of clue colors (indexes into puz->color) */
+    line_t *length;	/* Array of n clue lengths */
+    color_t *color;	/* Array of n clue colors (indexes into puz->color) */
+    line_t linelen;	/* Number of cells in this line */
     int jobindex;	/* Where is this clue on the job list? -1 if not. */
     line_t slack;	/* Amount of slack in this clue */
+    float score;	/* A heuristic score for this line */
+    line_t *colorcnt;	/* Counts of each color in this line */
     line_t *lpos,*rpos;	/* Last result from left_solve() and right_solve() */
     line_t *lcov,*rcov;	/* Coverage arrays that go with lpos, and rpos */
     line_t lbadb,rbadb;	/* Bad interval index in lpos,rpos. LINEMAX if none */
@@ -328,7 +331,7 @@ extern int mayexhaust;
 extern int maycontradict;
 extern int contradepth;
 extern int maycache, cachelines;
-extern int probelevel;
+extern int simpson;
 
 /* pbnsolve.c functions */
 
@@ -371,24 +374,23 @@ int count_solved(Solution *sol);
 void init_solution(Puzzle *puz, Solution *sol, int set);
 void free_solution(Solution *sol);
 void free_solution_list(SolutionList *sl);
-line_t count_cells(Puzzle *puz, Solution *sol, dir_t k, line_t i);
-line_t count_slack(Puzzle *puz, Solution *sol, dir_t k, line_t i);
 line_t count_paint(Puzzle *puz, Solution *sol, dir_t k, line_t i);
 void count_cell(Puzzle *puz, Cell *cell);
 char *solution_string(Puzzle *puz, Solution *sol);
 int check_nsolved(Puzzle *puz, Solution *sol);
 void make_spiral(Solution *sol);
+int count_neighbors(Solution *sol, line_t i, line_t j);
 
 /* line_lro.c functions */
 void init_line(Puzzle *puz);
-void dump_lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, bit_type *col);
+void dump_lro_solve(Puzzle *puz, dir_t k, line_t i, bit_type *col);
 int left_check(Clue *clue, line_t i, bit_type *bit);
 int right_check(Clue *clue, line_t i, bit_type *bit);
 void left_undo(Puzzle *puz, Clue *clue, Cell **line, line_t i, bit_type *new);
 void right_undo(Puzzle *puz, Clue *clue, Cell **line, line_t i, bit_type *new);
 line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos);
-line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell, int savepos);
-bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell);
+line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos);
+bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i);
 int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth);
 
 /* job.c functions */
@@ -405,15 +407,25 @@ int newedge(Puzzle *puz, Cell **line, line_t i, bit_type *old, bit_type *new);
 /* solve.c functions */
 extern long nlines, guesses, backtracks, probes, merges;
 extern long contratests, contrafound;
-int set_guess(int n);
+void guess_cell(Puzzle *puz, Solution *sol, Cell *cell, color_t c);
 int logic_solve(Puzzle *puz, Solution *sol, int contradicting);
 int solve(Puzzle *puz, Solution *sol);
+
+/* score.c function */
+void init_score(Puzzle *puz, Solution *sol);
+Cell *pick_a_cell(Puzzle *puz, Solution *sol);
+void solved_a_cell(Puzzle *puz, Cell *cell, int way);
+extern color_t (*pick_color)(Puzzle *puz, Solution *sol, Cell *cell);
+extern float (*cell_score_1)(Puzzle *, Solution *, line_t, line_t);
+extern float (*cell_score_2)(Puzzle *, Solution *, line_t, line_t);
 
 /* probe.c functions */
 extern int probing;
 extern bit_type *probepad;
 #define propad(cell) (probepad+(cell->id)*fbit_size)
 int probe(Puzzle *puz, Solution *sol, line_t *besti, line_t *bestj, color_t *bestc);
+void probe_stats(void);
+int set_probing(int n);
 
 /* contradict.c functions */
 int contradict(Puzzle *puz, Solution *sol);
@@ -438,6 +450,6 @@ int merge_check(Puzzle *puz, Solution *sol);
 
 /* line_cache.c function */
 void init_cache(Puzzle *puz);
-bit_type *line_cache(Puzzle *puz,Solution *sol,dir_t k,line_t i,line_t ncell);
-void add_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell);
+bit_type *line_cache(Puzzle *puz,Solution *sol,dir_t k,line_t i);
+void add_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i);
 extern long cache_hit, cache_req, cache_add, cache_flush;

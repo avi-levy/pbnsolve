@@ -173,44 +173,6 @@ void free_solution_list(SolutionList *sl)
 }
 
 
-/* COUNT_CELLS - return number of cells in the given line */
-
-line_t count_cells(Puzzle *puz, Solution *sol, dir_t k, line_t i)
-{
-    line_t ncell;
-    Cell **cell;
-
-    if (puz->type == PT_GRID)
-    	return puz->n[1-k];
-
-    /* Count the number of cells in the line */
-    cell= sol->line[k][i];
-    for (ncell= 0; cell[ncell] != NULL; ncell++)
-    	;
-
-    return ncell;
-}
-
-
-/* Compute and return slack for the i-th line in direction k.  */
-
-line_t count_slack(Puzzle *puz, Solution *sol, dir_t k, line_t i)
-{
-    line_t fill= 0;
-    Clue *clue= &puz->clue[k][i];
-    line_t j;
-
-    if (clue->slack >= 0) return clue->slack;
-
-    for (j= 0; j < clue->n; j++)
-    {
-    	if (j > 0 && clue->color[j-1] == clue->color[j]) fill++;
-	fill+= clue->length[j];
-    }
-    return clue->slack= (count_cells(puz,sol,k,i) - fill);
-}
-
-
 /* Compute and return the number of cells that would obviously be painted
  * on a blank grid for the i-th line in direction k.
  */
@@ -219,12 +181,11 @@ line_t count_paint(Puzzle *puz, Solution *sol, dir_t k, line_t i)
 {
     line_t paint= 0;
     Clue *clue= &puz->clue[k][i];
-    line_t slack= count_slack(puz,sol,k,i);
     line_t j;
 
     for (j= 0; j < clue->n; j++)
-    	if (clue->length[j] > slack)
-	    paint+= clue->length[j] - slack;
+    	if (clue->length[j] > clue->slack)
+	    paint+= clue->length[j] - clue->slack;
     return paint;
 }
 
@@ -339,4 +300,20 @@ void make_spiral(Solution *sol)
 	for (; i > n; i--)
 	    sol->spiral[s++]= sol->line[0][i][j];
     }
+}
+
+
+/* Count neighbors of a cell which are either solved or edges */
+
+int count_neighbors(Solution *sol, line_t i, line_t j)
+{
+    int count= 0;
+
+    /* Count number of solved neighbors or edges */
+    if (i == 0 || sol->line[0][i-1][j]->n == 1) count++;
+    if (i == sol->n[0]-1 || sol->line[0][i+1][j]->n == 1) count++;
+    if (j == 0 || sol->line[0][i][j-1]->n == 1) count++;
+    if (sol->line[0][i][j+1]==NULL || sol->line[0][i][j+1]->n == 1) count++;
+
+    return count;
 }

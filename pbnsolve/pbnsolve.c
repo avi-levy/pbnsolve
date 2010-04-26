@@ -33,13 +33,16 @@ int checkunique= 0;
 int checksolution= 0;
 int cachelines= 0;
 int http= 0, terse= 0;
-int probelevel= 2;
+int catch_intr= 0;
 
 long nlines, probes, guesses, backtracks, merges;
 long exh_runs, exh_cells;
 long contratests, contrafound;
 
+clock_t sclock;
 
+
+/* TIMEOUT - signal handler for timeouts */
 void timeout(int sig)
 {
     if (http)
@@ -72,8 +75,11 @@ int setalg(char ch)
 	int n= ch - '0';
 	switch (lastch)
 	{
-	case 'G': return set_guess(n);
-	case 'P': probelevel= n; return 1;
+	case 'G':
+	    return set_scoring_rule(n);
+
+	case 'P':
+	    return set_probing(n);
 	}
 	return 0;
     }
@@ -132,6 +138,55 @@ int setalg(char ch)
 }
 
 
+/* PRINT_STATS - print out various runtime statistics */
+void print_stats(FILE *fp, Puzzle *puz, clock_t eclock)
+{
+    int i, totallines= 0;
+    for (i= 0; i < puz->nset; i++)
+	totallines+= puz->n[i];
+    fprintf(fp,"Cells Solved: %d of %d\n",puz->nsolved, puz->ncells);
+    fprintf(fp,"Lines in Puzzle: %d\n",totallines);
+    fprintf(fp,"Lines Processed: %ld (%ld%%)\n",nlines,nlines/totallines*100);
+    if (exh_runs > 0 || mayexhaust)
+	fprintf(fp,"Exhaustive Search: %ld cell%s in %ld pass%s\n",
+	    exh_cells, (exh_cells == 1) ?"":"s",
+	    exh_runs, (exh_runs == 1) ?"":"es");
+    if (maycontradict)
+	fprintf(fp,"Contradiction Testing: %ld tests, %ld found\n",
+	    contratests, contrafound);
+    if (!mayprobe)
+	fprintf(fp,"Backtracking: %ld guesses, %ld backtracks\n",
+	    guesses,backtracks);
+    else if (!mergeprobe)
+	fprintf(fp,"Backtracking: %ld probes, %ld guesses, %ld backtracks\n",
+	    probes,guesses,backtracks);
+    else
+	fprintf(fp,"Backtracking: %ld probes, %ld merges, %ld guesses, "
+	       "%ld backtracks\n", probes,merges,guesses,backtracks);
+    if (mayprobe)
+	probe_stats();
+    if (maycache)
+	fprintf(fp,"Cache Hits: %ld/%ld (%.1f%%) Adds: %ld  Flushes: %ld\n",
+		cache_hit, cache_req,
+		(float)(cache_req ? cache_hit*100/cache_req : 0),
+		cache_add, cache_flush);
+    fprintf(fp,"Processing Time: %f sec \n",
+	    (float)(eclock - sclock)/CLOCKS_PER_SEC);
+}
+
+/* TIMEOUT - signal handler for interupts (used with -i flag) */
+static Puzzle *ipuz= NULL;
+void intr(int sig)
+{
+    char buf[10];
+    fprintf(stderr,"\n");
+    if (!ipuz) exit(1);
+    print_stats(stderr,ipuz,clock());
+    fprintf(stderr,"\nContinue [Y/n]? ");
+    fgets(buf,9,stdin);
+    if (buf[0]=='n' || buf[0]=='N') exit(1);
+}
+
 #define SN_NONE 0
 #define SN_START 1
 #define SN_INDEX 2
@@ -154,7 +209,7 @@ int main(int argc, char **argv)
     int setformat= 0, dump= 0, statistics= 0;
     int fmt, isunique, iscomplete;
     int totallines, rc;
-    clock_t sclock, eclock;
+    clock_t eclock;
 #ifdef DUMP_FILE
     FILE *dfp;
 #endif
@@ -314,6 +369,9 @@ int main(int argc, char **argv)
 			http= 1;
 			statistics= 0;
 			break;
+		    case 'i':
+			catch_intr= 1;
+			break;
 		    case 'u':
 			checkunique= 1;
 			break;
@@ -405,6 +463,12 @@ int main(int argc, char **argv)
 	    puz= load_puzzle_file(filename, fmt, pindex);
     }
 
+    if (catch_intr)
+    {
+	ipuz= puz;
+	signal(SIGINT, intr);
+    }
+
 #ifdef LINEWATCH
     /* Set the watch flags on the lines selected to be watched */
     for (j= 0; j < nwatch; j++)
@@ -466,6 +530,7 @@ int main(int argc, char **argv)
 	sol= new_solution(puz);
 
     if (statistics) sclock= clock();
+    init_score(puz, sol);
     init_jobs(puz, sol);
     if (VJ)
     {
@@ -652,37 +717,7 @@ int main(int argc, char **argv)
     }
 
     if (statistics)
-    {
-	totallines= 0;
-	for (i= 0; i < puz->nset; i++)
-	    totallines+= puz->n[i];
-	printf("Cells Solved: %d of %d\n",puz->nsolved, puz->ncells);
-	printf("Lines in Puzzle: %d\n",totallines);
-	printf("Lines Processed: %ld (%ld%%)\n",nlines,nlines/totallines*100);
-	if (exh_runs > 0 || mayexhaust)
-	    printf("Exhaustive Search: %ld cell%s in %ld pass%s\n",
-	    	exh_cells, (exh_cells == 1) ?"":"s",
-		exh_runs, (exh_runs == 1) ?"":"es");
-	if (maycontradict)
-	    printf("Contradiction Testing: %ld tests, %ld found\n",
-	    	contratests, contrafound);
-	if (!mayprobe)
-	    printf("Backtracking: %ld guesses, %ld backtracks\n",
-	    	guesses,backtracks);
-	else if (!mergeprobe)
-	    printf("Backtracking: %ld probes, %ld guesses, %ld backtracks\n",
-	    	probes,guesses,backtracks);
-	else
-	    printf("Backtracking: %ld probes, %ld merges, %ld guesses, "
-	    	   "%ld backtracks\n", probes,merges,guesses,backtracks);
-	if (maycache)
-	    printf("Cache Hits: %ld/%ld (%.1f%%) Adds: %ld  Flushes: %ld\n",
-		    cache_hit, cache_req,
-		    (float)(cache_req ? cache_hit*100/cache_req : 0),
-		    cache_add, cache_flush);
-	printf("Processing Time: %f sec \n",
-		(float)(eclock - sclock)/CLOCKS_PER_SEC);
-    }
+	print_stats(stdout,puz,eclock);
 
     if (sl != NULL && sl->note) printf("%s\n",sl->note);
 

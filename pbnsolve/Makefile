@@ -14,7 +14,7 @@ CFLAGS= -O2
 
 OBJ= pbnsolve.o read.o read_xml.o read_bw.o read_grid.o dump.o puzz.o grid.o \
 	line_lro.o job.o solve.o probe.o contradict.o gamma.o http.o clue.o \
-	merge.o exhaust.o bit.o read_olsak.o line_cache.o
+	merge.o exhaust.o bit.o read_olsak.o line_cache.o score.o
 
 pbnsolve: $(OBJ)
 	cc -o pbnsolve $(CFLAGS) $(OBJ) $(LIB)
@@ -27,6 +27,7 @@ line_lro.o: line_lro.c pbnsolve.h bitstring.h config.h
 line_cache.o: line_cache.c pbnsolve.h bitstring.h config.h
 job.o: job.c pbnsolve.h bitstring.h config.h
 solve.o: solve.c pbnsolve.h bitstring.h config.h
+score.o: score.c pbnsolve.h bitstring.h config.h
 probe.o: probe.c pbnsolve.h bitstring.h config.h
 contradict.o: contradict.c pbnsolve.h bitstring.h config.h
 exhaust.o: exhaust.c pbnsolve.h bitstring.h config.h
@@ -54,7 +55,7 @@ TARBALL= README CHANGELOG Makefile \
 	pbnsolve.c puzz.c read.c read_xml.c solve.c testgamma.c \
 	clue.c dump.c gamma.c grid.c http.c job.c line_lro.c merge.c \
 	exhaust.c testline.c probe.c contradict.c bit.c read_olsak.c \
-	line_cache.c
+	line_cache.c score.c
 
 pbnsolve.tgz: $(TARBALL)
 	tar cvzf pbnsolve.tgz $(TARBALL)

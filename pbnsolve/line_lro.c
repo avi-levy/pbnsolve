@@ -106,10 +106,9 @@ void init_line(Puzzle *puz)
 }
 
 
-void dump_lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i,
-    bit_type *col)
+void dump_lro_solve(Puzzle *puz, dir_t k, line_t i, bit_type *col)
 {
-    line_t ncell= count_cells(puz, sol, k, i);
+    line_t ncell= puz->clue[k][i].linelen;
     line_t j;
 
     for (j= 0; j < ncell; j++)
@@ -900,13 +899,13 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
  * trick to make old-fashioned spaghetti code look like it makes sense.
  */
 
-line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell,
-    int savepos)
+line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 {
     line_t b,j;
     color_t currcolor, nextcolor;
     int backtracking, state;
     Clue *clue= &puz->clue[k][i];
+    line_t ncell= clue->linelen;
     Cell **cell= sol->line[k][i];
     line_t maxblock= clue->n - 1;
     line_t *pos, *cov;
@@ -1386,23 +1385,19 @@ line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell,
  *
  * This returns a pointer to an array of bitstrings.  The calling program
  * should NOT free this array when it is done.  Returns NULL if there is no
- * solution.  If ncell is passed in less than or equal to zero, it is
- * computed.
+ * solution.
  */
 
-bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell)
+bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i)
 {
     Clue *clue= &puz->clue[k][i];
+    line_t ncell= clue->linelen;
     line_t nblock= clue->n;
     line_t *left, *right;
     line_t j;
     color_t c;
     line_t lb, rb;		/* Index of a block in left[] or right[] */
     int lgap,rgap;	/* If true, we are in gap before the indexed block */
-
-
-    /* Count the number of cells in the line */
-    if (ncell <= 0) ncell= count_cells(puz, sol, k, i);
 
     if (D)
 	printf("-----------------%s %d-LEFT------------------\n",
@@ -1413,7 +1408,7 @@ bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell)
     if (D)
 	printf("-----------------%s %d-RIGHT-----------------\n",
 		CLUENAME(puz->type,k),i);
-    right= right_solve(puz, sol, k, i, ncell, 1);
+    right= right_solve(puz, sol, k, i, 1);
     if (right == NULL)
     	fail("Left solution but no right solution for %s %d\n",
 		cluename(puz->type,k), i);
@@ -1492,7 +1487,7 @@ bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell)
     if (D)
     {
 	printf("L: SOLUTION TO LINE %d DIRECTION %d\n",i,k);
-	dump_lro_solve(puz, sol, k, i, col);
+	dump_lro_solve(puz, k, i, col);
     }
 
     return col;
@@ -1507,7 +1502,7 @@ bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell)
 int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth)
 {
     bit_type *col;
-    line_t ncell= count_cells(puz, sol, k, i);
+    line_t ncell= puz->clue[k][i].linelen;
     Cell **cell= sol->line[k][i];
     line_t j;
     color_t z;
@@ -1519,7 +1514,7 @@ int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth)
 	    CLUENAME(puz->type,k),i,depth-1);
 
     /* First try finding the solution in the cache */
-    if (cachelines && (col= line_cache(puz, sol, k, i, ncell)) != NULL)
+    if (cachelines && (col= line_cache(puz, sol, k, i)) != NULL)
     {
 	/* If found a cached solution invalidate old left/right solutions
 	 * They might still be valid, or they might not.
@@ -1530,7 +1525,7 @@ int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth)
     else
     {
 	/* If didn't find a solution from cache, Compute it */
-	col= lro_solve(puz, sol, k, i, ncell);
+	col= lro_solve(puz, sol, k, i);
 	if (col == NULL) return 0;
 	newsol= cachelines;
     }
@@ -1587,7 +1582,8 @@ int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth)
 		else
 		    count_cell(puz,cell[j]);
 
-		if (cell[j]->n == 1) puz->nsolved++;
+		if (cell[j]->n == 1)
+		    solved_a_cell(puz,cell[j],1);
 
 		/* Put other directions that use this cell on the job list */
 		add_jobs(puz, sol, k, cell[j], depth, oldval);
@@ -1600,7 +1596,7 @@ int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth)
     }
 
     /* If we are caching and computed a new solution, cache it */
-    if (newsol) add_cache(puz, sol, k, i, ncell);
+    if (newsol) add_cache(puz, sol, k, i);
 
     return 1;
 }

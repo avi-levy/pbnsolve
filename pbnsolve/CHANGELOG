@@ -1,3 +1,15 @@
+version 1.09 -
+  - Massively rewrote all the code having to do with heuristic functions,
+    most of which hasn't been used in a while because we have prefered
+    probing.  Now have much more flexibility to select different heuristics
+    from the command line.  Also implemented a version of Steve Simpson's
+    heuristic function that can be selected with the -aG4 flag.
+  - Added ablility to probe on cells that were given a top rating by the
+    heuristic functions.  This gave good performance increases on some puzzles,
+    but caused serious problems on a few others.  Not on by default.
+  - Added -i flag.  If set, interupts cause the program to print statistics
+    and ask if you want to continue.
+
 version 1.08 - Apr 22, 2010
   - Added probing on all neighbors of cells changed since the last probe.  This
     is another idea from the Ben Gurion University project.  Gives us
