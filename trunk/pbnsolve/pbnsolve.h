@@ -324,6 +324,7 @@ extern int verb[];
 extern int maylinesolve;
 extern int maybacktrack;
 extern int mayprobe;
+extern int mayguess;
 extern int mergeprobe;
 extern int checkunique;
 extern int checksolution;
@@ -331,7 +332,7 @@ extern int mayexhaust;
 extern int maycontradict;
 extern int contradepth;
 extern int maycache, cachelines;
-extern int simpson;
+extern long nsprint, nplod;
 
 /* pbnsolve.c functions */
 
@@ -425,6 +426,7 @@ extern bit_type *probepad;
 #define propad(cell) (probepad+(cell->id)*fbit_size)
 int probe(Puzzle *puz, Solution *sol, line_t *besti, line_t *bestj, color_t *bestc);
 void probe_stats(void);
+float probe_rate(void);
 int set_probing(int n);
 
 /* contradict.c functions */

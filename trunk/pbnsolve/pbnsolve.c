@@ -27,7 +27,7 @@ char *version= "1.08";
 
 int verb[NVERB];
 int maybacktrack= 1, mayexhaust= 1, maycontradict= 0, maycache= 1;
-int mayprobe= 1, mergeprobe= 0, maylinesolve= 1;
+int mayguess= 0, mayprobe= 1, mergeprobe= 0, maylinesolve= 1;
 int contradepth= 2;
 int checkunique= 0;
 int checksolution= 0;
@@ -35,7 +35,7 @@ int cachelines= 0;
 int http= 0, terse= 0;
 int catch_intr= 0;
 
-long nlines, probes, guesses, backtracks, merges;
+long nlines, probes, guesses, backtracks, merges, nsprint, nplod;
 long exh_runs, exh_cells;
 long contratests, contrafound;
 
@@ -102,17 +102,15 @@ int setalg(char ch)
     case 'G':
 	/* Guessing */
 	maybacktrack= 1;
-	mayprobe= 0;
-	mergeprobe= 0;
+	mayguess= 1;
     	break;
     case 'P':
-	/* Probing without Merging */
+	/* Probing */
 	maybacktrack= 1;
 	mayprobe= 1;
-	mergeprobe= 0;
     	break;
     case 'M':
-	/* Probing with Merging */
+	/* Merging - require probing */
 	maybacktrack= 1;
 	mayprobe= 1;
 	mergeprobe= 1;
@@ -165,6 +163,8 @@ void print_stats(FILE *fp, Puzzle *puz, clock_t eclock)
 	       "%ld backtracks\n", probes,merges,guesses,backtracks);
     if (mayprobe)
 	probe_stats();
+    if (mayprobe && mayguess)
+	fprintf(fp,"Plod cycles: %ld, Sprint cycles: %ld\n", nplod, nsprint);
     if (maycache)
 	fprintf(fp,"Cache Hits: %ld/%ld (%.1f%%) Adds: %ld  Flushes: %ld\n",
 		cache_hit, cache_req,
@@ -538,7 +538,7 @@ int main(int argc, char **argv)
 	dump_jobs(stdout,puz);
     }
     nlines= probes= guesses= backtracks= merges= exh_runs= exh_cells= 0;
-    contratests= contrafound= 0;
+    contratests= contrafound= nsprint= nplod= 0;
     while (1)
     {
 	rc= solve(puz,sol);

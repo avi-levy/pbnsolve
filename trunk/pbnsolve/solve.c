@@ -167,6 +167,7 @@ int solve(Puzzle *puz, Solution *sol)
     color_t bestc;
     int bestnleft;
     int rc;
+    int sprint_clock= 0, plod_clock= PLOD_INIT;
 
     /* One color puzzles are already solved */
     if (puz->ncolor < 2)
@@ -219,7 +220,7 @@ int solve(Puzzle *puz, Solution *sol)
 		init_cache(puz);
 	    }
 
-	    if (mayprobe)
+	    if (mayprobe && (!mayguess || sprint_clock <= 0))
 	    {
 		/* Do probing to find best guess to make */
 		if (VA) printf("A: PROBING\n");
@@ -238,6 +239,30 @@ int solve(Puzzle *puz, Solution *sol)
 		    print_coord(stdout,puz,cell);
 		    printf(" COLOR %d\n",bestc);
 		}
+		
+		/* If a lot of probes have not been finding contradictions,
+		 * consider triggering sprint mode
+		 */
+		if (mayguess && --plod_clock <= 0)
+		{
+		    float rate= probe_rate();
+		    if (rate >= .12)
+		    {
+			/* More than 10% have failed to find contradiction,
+			 * so try heuristic searching for a while */
+			sprint_clock= SPRINT_LENGTH;
+			nsprint++;
+			/*printf("STARTING SPRINT - probe rate=%.4f\n",rate);*/
+		    }
+		    else
+		    {
+			/* Success rate of probing is still high. Keep on
+			 * trucking. */
+			plod_clock= PLOD_LENGTH;
+			nplod++;
+			/*printf("CONTINUING PLOD - probe rate=%.4f\n", rate);*/
+		    }
+		}
 	    }
 	    else
 	    {
@@ -252,6 +277,15 @@ int solve(Puzzle *puz, Solution *sol)
 		    printf("A: GUESSING SELECTED ");
 		    print_coord(stdout,puz,cell);
 		    printf(" COLOR %d\n",bestc);
+		}
+
+		if (mayprobe && --sprint_clock <= 0)
+		{
+		    /* If we have reached the end of our sprint, try plodding
+		     * again.  */
+		    plod_clock= PLOD_LENGTH;
+		    nplod++;
+		    /*printf("ENDING SPRINT\n");*/
 		}
 	    }
 	    guess_cell(puz, sol, cell, bestc);
