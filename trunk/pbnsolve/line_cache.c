@@ -344,19 +344,18 @@ int hash_find(LineHash *hash, line_t clid, bit_type *line)
  * NULL.
  */
 
-bit_type *line_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i,
-	line_t ncell)
+bit_type *line_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i)
 {
     int index;
     HashElem *e;
     line_t this_clid= clid[k][i];
+    line_t ncell= puz->clue[k][i].linelen;
 
     if (VH) printf("H: checking cache for %s %i\n", cluename(puz->type,k),i);
 
     cache[k]->lastslot= -1;
 
     /* Get the line length if it wasn't passed to us */
-    if (ncell <= 0) ncell= count_cells(puz, sol, k, i);
 
     /* Compress the current state of the line */
     if (this_clid > 0)
@@ -392,7 +391,7 @@ bit_type *line_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i,
     if (VH)
     {
 	printf("H: uncompressed solution:\n");
-	dump_lro_solve(puz, sol, k, i, col);
+	dump_lro_solve(puz, k, i, col);
     }
 
     /* Return the solution */
@@ -405,9 +404,10 @@ bit_type *line_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i,
  * in the empty cell where the most recent call to line_cache() stopped.
  */
 
-void add_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell)
+void add_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i)
 {
     HashElem *e;
+    line_t ncell= puz->clue[k][i].linelen;
 
     if (VH) printf("H: adding %s %i solution to cache %d\n",
 		cluename(puz->type,k),i,k);
@@ -425,8 +425,6 @@ void add_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell)
     if (cache[k]->lastslot < 0) return;
     cache_add++;
 
-    /* Get the line length if it wasn't passed to us */
-    if (ncell <= 0) ncell= count_cells(puz, sol, k, i);
 
     e= HashSlot(cache[k], cache[k]->lastslot);
     clueid(e)= abs(clid[k][i]);
@@ -450,9 +448,8 @@ void add_cache(Puzzle *puz, Solution *sol, dir_t k, line_t i, line_t ncell)
 
 /* COMPRESS_LINE: Take a line of the current solution and compress it into
  * a single bit string.  The string will contain <ncell>*<ncolors> bits,
- * each bit being one if that cell can be that color.  ncell may not be zero.
- * "out" must point to a preallocated buffer big enough to store the compressed
- * line.
+ * each bit being one if that cell can be that color.  "out" must point to a
+ * preallocated buffer big enough to store the compressed line.
  */
 
 void compress_line(Puzzle *puz, Solution *sol,

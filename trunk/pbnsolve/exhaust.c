@@ -211,7 +211,7 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 			 */
 			if (realn == 1)
 			{
-			    puz->nsolved++;
+			    solved_a_cell(puz,cell,1);
 			    if (!check) goto celldone;
 			}
 			break;	/* Don't check more directions on this cell */

@@ -211,7 +211,6 @@ void parse_xml_clue(xmlNode *root, Puzzle *puz, Clue *clue)
 	}
     }
 
-    clue->slack= -1;	/* Unknown */
 #ifdef LINEWATCH
     clue->watch= 0;
 #endif

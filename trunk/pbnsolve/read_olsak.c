@@ -145,7 +145,6 @@ Puzzle *load_g_puzzle()
 	    clue->length= (line_t *)malloc(clue->s * sizeof(line_t));
 	    clue->color= (color_t *)malloc(clue->s * sizeof(color_t));
 	    clue->jobindex= -1;
-	    clue->slack= -1;
 #ifdef LINEWATCH
 	    clue->watch= 0;
 #endif

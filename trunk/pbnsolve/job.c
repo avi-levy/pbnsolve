@@ -392,7 +392,7 @@ int undo(Puzzle *puz, Solution *sol, int leave_branch)
 	if (!is_branch || !leave_branch)
 	{
 	    /* If undoing a solved cell, decrement completion count */
-	    if (h->cell->n == 1) puz->nsolved--;
+	    if (h->cell->n == 1) solved_a_cell(puz, h->cell, -1);
 
 	    /* Restore saved value */
 	    h->cell->n= h->n;
@@ -417,6 +417,7 @@ int undo(Puzzle *puz, Solution *sol, int leave_branch)
     return 1;
 }
 
+
 /* Backtrack up the history, undoing changes we made.  Stop at the first
  * branch point, set that cell to the contradiction of the previous change.
  * Returns 0 if we successfully backtracked.  Returns 1 if there was no
@@ -426,7 +427,7 @@ int undo(Puzzle *puz, Solution *sol, int leave_branch)
 int backtrack(Puzzle *puz, Solution *sol)
 {
     Hist *h;
-    color_t z, oldn;
+    color_t z, oldn, newn;
     dir_t k;
 
     if (VB) printf("B: BACKTRACKING TO LAST GUESS\n");
@@ -440,7 +441,7 @@ int backtrack(Puzzle *puz, Solution *sol)
 
     if (VB) print_solution(stdout,puz,sol);
 
-    /* This will be the branch point */
+    /* This will be the branch point since undo() backed us up to it */
     h= HIST(puz, puz->nhist-1);
 
     if (VB || WC(h->cell))
@@ -454,6 +455,9 @@ int backtrack(Puzzle *puz, Solution *sol)
 	printf("|\n");
     }
 
+    /* If undoing a solved cell, uncount it */
+    if (h->cell->n == 1) solved_a_cell(puz, h->cell, -1);
+
     /* Reset any bits previously set */
 #ifdef LIMITCOLORS
     h->cell->bit[0]= ((~h->cell->bit[0]) & h->bit[0]);
@@ -461,14 +465,12 @@ int backtrack(Puzzle *puz, Solution *sol)
     for (z= 0; z < fbit_size; z++)
 	h->cell->bit[z]= ((~h->cell->bit[z]) & h->bit[z]);
 #endif
+    h->cell->n= h->n - h->cell->n;  /* Since the bits set in h are always
+				       a superset of those in h->cell,
+				       this should always work */
 
-    /* Count the number of colors left */
-    oldn= h->cell->n;
-    if (puz->ncolor <= 2)
-	h->cell->n= 1;
-    else
-	count_cell(puz,h->cell);
-    if (oldn == 1 && h->cell->n > 1) puz->nsolved--;
+    /* If inverted cell is solved, count it */
+    if (h->cell->n == 1) solved_a_cell(puz, h->cell, 1);
 
     if (VB || WC(h->cell))
     {

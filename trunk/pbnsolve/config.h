@@ -1,14 +1,5 @@
 /* Configuration Settings */
 
-/* GUESS COLOR ALGORITHM.  When we make a guess, what color should it be?
- * Define one of the following.  These are used only if probing is not used.
- */
-
-/* #define GC_MAX /**/
-/* #define GC_MIN /**/
-/* #define GC_RAND /**/
-#define GC_CONTRAST /**/
-
 /* CPU TIME LIMITS - Limits on CPU time can be set from the command line with
  * the -x option.  If pbnsolve uses more than that number of CPU seconds, then
  * it will terminate abruptly.  A CPU limit of zero means no limit.

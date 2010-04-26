@@ -84,7 +84,7 @@ int main(int argc, char **argv)
     else
     {
 	printf("RIGHT SOLVING:\n");
-	s= right_solve(puz, sol, k, i, count_cells(puz, sol, k, i));
+	s= right_solve(puz, sol, k, i);
     }
 
     if (s == NULL)

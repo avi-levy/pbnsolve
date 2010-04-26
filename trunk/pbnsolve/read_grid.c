@@ -132,7 +132,6 @@ Puzzle *load_pbm_puzzle()
     sol->n[D_ROW]= nrow;
     sol->n[D_COL]= ncol;
     puz->ncells= nrow*ncol;
-    puz->nsolved= 0;
 
     /* Build the grid data structure, initiallizing all cells to no-color */
     init_solution(puz, sol, 0);

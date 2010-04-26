@@ -254,7 +254,7 @@ int merge_check(Puzzle *puz, Solution *sol)
 	    else
 	        count_cell(puz,m->cell);
 
-	    if (m->cell->n == 1) puz->nsolved++;
+	    if (m->cell->n == 1) solved_a_cell(puz, m->cell,1);
 
             /* Add rows/columns containing this cell to the job list */
 	    add_jobs(puz, sol, -1, m->cell, 0, oldval);
