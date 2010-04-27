@@ -21,8 +21,8 @@
 
 #include "pbnsolve.h"
 
-int count_colors= 1;	/* Should we count colors in each line? */
-int score_adjust= 1;	/* Subtraction from line score when cell is solved */
+int count_colors= 0;	/* Should we count colors in each line? */
+int score_adjust= 0;	/* Subtraction from line score when cell is solved */
 
 
 /* ----------------- LINE SCORE INITIALIZATION FUNCTIONS ----------------- */
@@ -113,8 +113,7 @@ cluename(puz->type,k),i,clue->slack,clue->n,clue->linelen,
  * be NULL if we aren't using a line score function.
  */
 
-static float (*line_score)(Puzzle *puz, Solution *sol, dir_t k, line_t i)=
-	&line_score_simpson;
+static float (*line_score)(Puzzle *puz, Solution *sol, dir_t k, line_t i);
 
 
 /* ------------ CELL RATING FUNCTIONS ------------ */
@@ -189,10 +188,8 @@ float cell_score_neighbor(Puzzle *puz, Solution *sol, line_t i, line_t j)
  * ties in the first
  */
 
-float (*cell_score_1)(Puzzle *, Solution *, line_t, line_t)=
-	&cell_score_sum;
-float (*cell_score_2)(Puzzle *, Solution *, line_t, line_t)=
-	NULL;
+float (*cell_score_1)(Puzzle *, Solution *, line_t, line_t);
+float (*cell_score_2)(Puzzle *, Solution *, line_t, line_t);
 
 
 /* ------------ COLOR SELECTION FUNCTIONS ------------ */
@@ -330,8 +327,7 @@ color_t pick_color_prob(Puzzle *puz, Solution *sol, Cell *cell)
 
 /* This points to the pick_color function currently being used */
 
-color_t (*pick_color)(Puzzle *puz, Solution *sol, Cell *cell)=
-	&pick_color_prob;
+color_t (*pick_color)(Puzzle *puz, Solution *sol, Cell *cell);
 
 /* ---------------------------------------------------------------- */
 
@@ -516,11 +512,18 @@ void solved_a_cell(Puzzle *puz, Cell *cell, int way)
  *
  *  4 = Simpson's heuristic, more or less.
  *
- * There are preset defaults that are used if this isn't called.
+ * This should always be called if we plan to use any heuristic functions.
+ * If may_override is false, then the setting passed in will not override any
+ * settings made by previous calls to this function.
  */
 
-int set_scoring_rule(int n)
+static int have_set_scoring_rule= 0;
+
+int set_scoring_rule(int n, int may_override)
 {
+    if (have_set_scoring_rule && !may_override) return 1;
+    have_set_scoring_rule= 1;
+
     count_colors= 0;
     score_adjust= 0;
     switch (n)

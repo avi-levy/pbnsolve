@@ -76,7 +76,7 @@ int setalg(char ch)
 	switch (lastch)
 	{
 	case 'G':
-	    return set_scoring_rule(n);
+	    return set_scoring_rule(n,1);
 
 	case 'P':
 	    return set_probing(n);
@@ -108,6 +108,7 @@ int setalg(char ch)
 	/* Probing */
 	maybacktrack= 1;
 	mayprobe= 1;
+	set_scoring_rule(4,0);	/* Default algorithm = Simpson */
     	break;
     case 'M':
 	/* Merging - require probing */

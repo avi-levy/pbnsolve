@@ -284,7 +284,8 @@ int probe(Puzzle *puz, Solution *sol,
 	 * since the last guess.
 	 */
 	currsrc= PRBSRC_ADJACENT;
-	for (k= puz->nhist - 1; k >= 0; k--)
+
+	for (k= puz->nhist - 1; k > 0; k--)
 	{
 	    h= HIST(puz,k);
 	    ci= h->cell->line[D_ROW];
@@ -470,13 +471,13 @@ int set_probing(int n)
 {
     switch (n)
     {
-    case 1:
+    case 1:  /* Old style */
 	probeon[PRBSRC_ADJACENT]= 0;
 	probeon[PRBSRC_TWONEIGH]= 1;
 	probeon[PRBSRC_HEURISTIC]= 0;
 	return 1;
 
-    case 2:
+    case 2: /* Current Default */
 	probeon[PRBSRC_ADJACENT]= 1;
 	probeon[PRBSRC_TWONEIGH]= 1;
 	probeon[PRBSRC_HEURISTIC]= 0;
@@ -486,14 +487,14 @@ int set_probing(int n)
 	probeon[PRBSRC_ADJACENT]= 1;
 	probeon[PRBSRC_TWONEIGH]= 0;
 	probeon[PRBSRC_HEURISTIC]= 1;
-	set_scoring_rule(4);	/* Use Simpson's heurstic */
+	set_scoring_rule(4,0);	/* Use Simpson's heurstic */
 	return 1;
 
     case 4:
 	probeon[PRBSRC_ADJACENT]= 1;
 	probeon[PRBSRC_TWONEIGH]= 1;
 	probeon[PRBSRC_HEURISTIC]= 1;
-	set_scoring_rule(4);	/* Use Simpson's heurstic */
+	set_scoring_rule(4,0);	/* Use Simpson's heurstic */
 	return 1;
     }
     return 0;
