@@ -27,7 +27,7 @@ char *version= "1.08";
 
 int verb[NVERB];
 int maybacktrack= 1, mayexhaust= 1, maycontradict= 0, maycache= 1;
-int mayguess= 0, mayprobe= 1, mergeprobe= 0, maylinesolve= 1;
+int mayguess= 1, mayprobe= 1, mergeprobe= 0, maylinesolve= 1;
 int contradepth= 2;
 int checkunique= 0;
 int checksolution= 0;
@@ -108,7 +108,6 @@ int setalg(char ch)
 	/* Probing */
 	maybacktrack= 1;
 	mayprobe= 1;
-	set_scoring_rule(4,0);	/* Default algorithm = Simpson */
     	break;
     case 'M':
 	/* Merging - require probing */
@@ -234,6 +233,9 @@ int main(int argc, char **argv)
 #ifdef GC_RAND
     srand(time(NULL));
 #endif
+
+    /* Default scoring rule - Simpson */
+    set_scoring_rule(4,1);
 
     if (strstr(argv[0],"pbnsolve.cgi") != NULL)
     {
@@ -531,7 +533,7 @@ int main(int argc, char **argv)
 	sol= new_solution(puz);
 
     if (statistics) sclock= clock();
-    init_score(puz, sol);
+    clue_init(puz, sol);
     init_jobs(puz, sol);
     if (VJ)
     {
@@ -539,7 +541,8 @@ int main(int argc, char **argv)
 	dump_jobs(stdout,puz);
     }
     nlines= probes= guesses= backtracks= merges= exh_runs= exh_cells= 0;
-    contratests= contrafound= nsprint= nplod= 0;
+    contratests= contrafound= nsprint= 0;
+    nplod= 1;
     while (1)
     {
 	rc= solve(puz,sol);

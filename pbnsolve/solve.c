@@ -176,6 +176,12 @@ int solve(Puzzle *puz, Solution *sol)
 	return 1;
     }
 
+    /* Start bookkeeping, if we need it */
+    if (mayprobe)
+	probe_init(puz,sol);
+    else
+	bookkeeping_on(puz,sol);
+
     while (1)
     {
 	/* Always start with logical solving */
@@ -250,6 +256,7 @@ int solve(Puzzle *puz, Solution *sol)
 		    {
 			/* More than 10% have failed to find contradiction,
 			 * so try heuristic searching for a while */
+			bookkeeping_on(puz,sol);
 			sprint_clock= SPRINT_LENGTH;
 			nsprint++;
 			/*printf("STARTING SPRINT - probe rate=%.4f\n",rate);*/
@@ -283,6 +290,7 @@ int solve(Puzzle *puz, Solution *sol)
 		{
 		    /* If we have reached the end of our sprint, try plodding
 		     * again.  */
+		    probe_init(puz,sol);
 		    plod_clock= PLOD_LENGTH;
 		    nplod++;
 		    /*printf("ENDING SPRINT\n");*/

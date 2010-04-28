@@ -413,17 +413,20 @@ int logic_solve(Puzzle *puz, Solution *sol, int contradicting);
 int solve(Puzzle *puz, Solution *sol);
 
 /* score.c function */
-void init_score(Puzzle *puz, Solution *sol);
+void bookkeeping_on(Puzzle *puz, Solution *sol);
+void bookkeeping_off();
 Cell *pick_a_cell(Puzzle *puz, Solution *sol);
 void solved_a_cell(Puzzle *puz, Cell *cell, int way);
 extern color_t (*pick_color)(Puzzle *puz, Solution *sol, Cell *cell);
 extern float (*cell_score_1)(Puzzle *, Solution *, line_t, line_t);
 extern float (*cell_score_2)(Puzzle *, Solution *, line_t, line_t);
+int set_scoring_rule(int n, int may_override);
 
 /* probe.c functions */
 extern int probing;
 extern bit_type *probepad;
 #define propad(cell) (probepad+(cell->id)*fbit_size)
+void probe_init(Puzzle *puz, Solution *sol);
 int probe(Puzzle *puz, Solution *sol, line_t *besti, line_t *bestj, color_t *bestc);
 void probe_stats(void);
 float probe_rate(void);
@@ -441,6 +444,7 @@ char *get_query(void);
 char *query_lookup(char *query, char *var);
 
 /* clue.c functions */
+void clue_init(Puzzle *puz, Solution *sol);
 void make_clues(Puzzle *puz, Solution *sol);
 
 /* merge.c functions */
