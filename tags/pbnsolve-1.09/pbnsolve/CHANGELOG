@@ -1,0 +1,118 @@
+version 1.09 - Apr 28, 2010
+  - Massively rewrote all the code having to do with heuristic functions,
+    most of which hasn't been used in a while because we have prefered
+    probing.  Now have much more flexibility to select different heuristics
+    from the command line.
+  - Also implemented a version of Steve Simpson's heuristic function that can
+    be selected with the -aG4 flag.  This is the new default heuristic.
+  - If both probing and guessing are turned on (-aLGP), then we use probing
+    until the rate of finding contradictions falls below 88%, and then try
+    using heuristic search for a while.  This makes no difference on most
+    puzzles, slows us down a bit on a few, and helps a lot on a few others.
+    It is the new default.
+  - Added ablility to probe on cells that were given a top rating by the
+    heuristic functions.  This gave good performance increases on some puzzles,
+    but caused serious problems on a few others.  Not on by default. Can be
+    selected with -aP3 or -aP4 options.
+  - Added -i flag.  If set, interupts cause the program to print statistics
+    and ask if you want to continue.
+
+version 1.08 - Apr 22, 2010
+  - Added probing on all neighbors of cells changed since the last probe.  This
+    is another idea from the Ben Gurion University project.  Gives us
+    substantial performance gains on many puzzles, and mild performance loses
+    on a few.  The old probing algorithm can be selected by -aP1.  This is -aP2.
+  - Can now select between heuristic search algorithms from the command line,
+    using the -aG1, -aG2, or -aG3 flags.
+  - Modified caching algorithm so solutions for lines with clues that are
+    the reverse of each other are cached together.  This ended up having
+    very little effect on performance.
+
+version 1.07 - Apr 18, 2010
+  - Add caching of line solutions. This idea comes from the Ben Gurion
+    University Solver project.  Works very well.  Defaults on.
+
+version 1.06 - Jan 7, 2010
+  - Better output in case of puzzle with no solutions.
+  - Fix some bugs that manifested when starting from a partially complete
+    solution loaded from an XML file.
+
+version 1.05 - June 19, 2009
+  - Improved probing performance by having it remember all cells that were
+    set on previous probes and not probe on those, since they can't possibly
+    give a better result.
+  - Performance improvements and bug fixes to merging algorithm, but it still
+    isn't a net gain.  Makes some puzzles a little faster, and some a little
+    slower.  Tends toward a little slower on the really hard puzzles.  So we
+    leave it turned off by default.
+  - Added ability to read Olsak .g files, except triddlers and triangle
+    puzzles.
+
+version 1.04 - June 17, 2009
+  - Added caching of old left/right solutions for each line, and reuse of them
+    when possible to speed up line solving.  This adds a heck of a lot of
+    complexity, and only a little speed-up.  Might not have been that great
+    an idea.
+  - Restructured main search algorithm to separate code for the different
+    search strategies instead of tangling them all together.  Mostly for
+    code readability and debuggability.
+  - Added contradiction checking algorithm.  Goal of this is to identify
+    puzzles that can be solved with limited lookahead, and are thus perhaps
+    more human solvable.  I'm not convinced yet that it really does that.  It
+    seems to make some puzzles solve faster, but others slower.  For now it's
+    still experimental and not on by default.
+  - Differentiation of my old "int" variables into "line_t", "color_t" and
+    "dir_t" typedefs.
+  - Reduce amount of allocating and releasing of dynamic memory we do in
+    line_lro.c.  This gives some small speed increases.
+  - Keep undo history in an array instead of a linked list.  Another trick
+    to cut back on dynamic memory allocation.
+  - Sight efficience improvements to bit string operators, including adding
+    LIMITCOLORS mode.  More speed increases.
+  - Watch individual lines with the -w command line option.  A useful debugging
+    tool.
+  - Revisions to job priority assignment.  If a color change to a cell creates
+    edge, then the row that would cross the edge gets a boost to it's
+    priority.
+
+version 1.03 - May 31, 2009
+  - Improved efficiency of try_everything() routine by adding a scratchpad.
+    Also broke it out to a separate file.
+  - Fixed a bug that caused an incomplete solution to be printed although a
+    complete solution had been found with the -u flag.
+  - Command line arguments rearranged, with new -a option to control algorithm
+    choice.
+  - Some rearrangement of code now to make it possible (though not desirable)
+    to run using the exhaustive check instead of the line solver.  This is
+    really mostly to test that the exhaustive check is working correctly.
+  - Ability to read input format of Bosch's LP solver.
+
+version 1.02 - May 26, 2009
+  - Ability to read several black & white puzzle puzzle file formats.
+  - Ability to read pbm image files as puzzles.
+  - Addition of -b "terse mode" flag.
+  - Addition of -f option to explicitly set file formats.
+  - Ability to set cpu limits from command line with -x<secs> flag.
+  - Command line version now reads puzzle from standard input if no file
+    name is given.
+  - For files containing multiple puzzles, puzzle index to solve is now
+    given on -n option.
+  - In cgi-mode, a CGI argument name "format" can be passed which contains
+    a string identifying the file format.
+  - Attached Apache 2.0 license to the distribution.
+  - Improvement of documentation.
+
+version 1.01 - May 23, 2009
+  - add CHANGELOG
+  - print version number on startup if verbose
+  - add merging on probes.  This looks for cells that were set to the same
+    value on all probes of different color settings for some other cell.
+    This, alas, seems to just slow us down on nearly all puzzles.
+  - after logical solving gets stuck for the first time, but before we start
+    guessing, try setting every cell to every possible cover, and check if any
+    of these settings contradict any clue.  There is a chance that this will
+    find some markable squares missed by the LRO linesolver.
+  - Finer control of debugging messages.
+
+version 1.0 - Sep 10, 2007
+  - original release
