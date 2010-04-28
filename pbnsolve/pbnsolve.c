@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-char *version= "1.08";
+char *version= "1.09";
 
 #include "pbnsolve.h"
 
