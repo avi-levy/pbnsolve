@@ -104,3 +104,56 @@ void make_clues(Puzzle *puz, Solution *sol)
 	}
     }
 }
+
+
+/* CLUE_INIT - Do some generic initialization to the Clue data structures.
+ *
+ *  (1) Store line lengths in every clue.
+ *  (2) Compute slack for all lines.
+ */
+
+void clue_init(Puzzle *puz, Solution *sol)
+{
+    dir_t k;
+    line_t i, j;
+    Clue *clue;
+    line_t fill, spaces;
+    extern int count_colors;
+
+    puz->nsolved= 0;
+
+    for (k= 0; k < puz->nset; k++)
+    {
+	for (i= 0; i < puz->n[k]; i++)
+	{
+	    clue= &puz->clue[k][i];
+
+	    /* Store the line length */
+	    if (puz->type == PT_GRID)
+		clue->linelen= puz->n[1-k];
+	    else
+	    {
+		/* This case will only ever be used if we support triddlers */
+		Cell **cell= sol->line[k][i];
+		for (clue->linelen= 0;
+			cell[clue->linelen] != NULL;
+			clue->linelen++)
+		    ;
+	    }
+
+	    /* Create color count array, if we are using it */
+	    if (count_colors)
+		clue->colorcnt= (line_t *)calloc(puz->ncolor, sizeof(line_t));
+
+	    /* Compute slack */
+	    fill= 0;
+	    spaces= 0;
+	    for (j= 0; j < clue->n; j++)
+	    {
+		if (j > 0 && clue->color[j-1] == clue->color[j]) spaces++;
+		fill+= clue->length[j];
+	    }
+	    clue->slack= (clue->linelen - fill - spaces);
+	}
+    }
+}

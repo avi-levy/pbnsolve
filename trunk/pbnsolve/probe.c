@@ -67,6 +67,18 @@ void init_probepad(Puzzle *puz)
     	memset(probepad, 0, puz->ncells * fbit_size * sizeof(bit_type));
 }
 
+
+/* PROBE_INIT - Warn that we are going to be probing for a while */
+
+void probe_init(Puzzle *puz, Solution *sol)
+{
+    if (probeon[PRBSRC_HEURISTIC])
+	bookkeeping_on(puz,sol);
+    else
+	bookkeeping_off();
+}
+
+
 /* PROBE_CELL - Do a sequence of probes on a cell.  We normally do one probe
  * on each possible color for the cell.  <cell> points and the cell, and <i>
  * and <j> are its coordinates.  <bestnleft> points to the nleft value of the
@@ -430,6 +442,7 @@ void probe_stats(void)
 {
     int i, comma= 0;
     printf("Probe Sequences: %ld\n",nprobe);
+    if (nprobe == 0) return;
     probe_stat_line("Found Contradiction:",PRBRES_CONTRADICT);
     probe_stat_line("Found Solution:     ",PRBRES_SOLVE);
     probe_stat_line("Choose Optimum:     ",PRBRES_BEST);

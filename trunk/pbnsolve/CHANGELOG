@@ -1,4 +1,4 @@
-version 1.09 -
+version 1.09 - Apr 28, 2010
   - Massively rewrote all the code having to do with heuristic functions,
     most of which hasn't been used in a while because we have prefered
     probing.  Now have much more flexibility to select different heuristics
@@ -7,10 +7,13 @@ version 1.09 -
     be selected with the -aG4 flag.  This is the new default heuristic.
   - If both probing and guessing are turned on (-aLGP), then we use probing
     until the rate of finding contradictions falls below 88%, and then try
-    using heuristic search for a while.
+    using heuristic search for a while.  This makes no difference on most
+    puzzles, slows us down a bit on a few, and helps a lot on a few others.
+    It is the new default.
   - Added ablility to probe on cells that were given a top rating by the
     heuristic functions.  This gave good performance increases on some puzzles,
-    but caused serious problems on a few others.  Not on by default.
+    but caused serious problems on a few others.  Not on by default. Can be
+    selected with -aP3 or -aP4 options.
   - Added -i flag.  If set, interupts cause the program to print statistics
     and ask if you want to continue.
 

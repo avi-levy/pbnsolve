@@ -23,6 +23,7 @@
 
 int count_colors= 0;	/* Should we count colors in each line? */
 int score_adjust= 0;	/* Subtraction from line score when cell is solved */
+int bookkeeping= 0;	/* Is bookkeeping for the above currently on? */
 
 
 /* ----------------- LINE SCORE INITIALIZATION FUNCTIONS ----------------- */
@@ -30,7 +31,7 @@ int score_adjust= 0;	/* Subtraction from line score when cell is solved */
 /* These functions evaluate lines from the puzzle, giving LOWER scores
  * to lines that are more promising to work on.  These are called one
  * time during initialization to assign initial values.  If line scores
- * are updated at all during the run, then it is done by the solve_a_cell()
+ * are updated at all during the run, then it is done by the solved_a_cell()
  * function.  Sometimes no line score initialization function is used.
  */
 
@@ -331,70 +332,82 @@ color_t (*pick_color)(Puzzle *puz, Solution *sol, Cell *cell);
 
 /* ---------------------------------------------------------------- */
 
-/* INIT_SCORE - Do whatever initialization is required for a scoring
- *  system.  Some of this initialization is used even if we aren't doing
- *  heuristic search, so this should always be called.  set_scoring_rule()
- *  should already have been called if we are not using the defaults.
- *
- *  (1) Store line lengths in every clue.
- *  (2) Compute slack for all lines.
- *  (3) If we have a line_score initialization function, call it on all
- *      lines.
- *  (4) If we are using pick_color_prob(), the initialize the colorcnt
- *      arrays for each line.
+/* BOOKKEEPING_ON - Start continuously updating the color count and score
+ * arrays in the Clue data structure.  
  */
 
-void init_score(Puzzle *puz, Solution *sol)
+
+void bookkeeping_on(Puzzle *puz, Solution *sol)
 {
     dir_t k;
-    line_t i, j;
+    line_t i, j, nsolve;
+    color_t c;
     Clue *clue;
-    line_t fill, spaces;
+    Cell *cell;
 
-    puz->nsolved= 0;
+    /* Update the bookkeeping flag */
+    if (bookkeeping) return;
+    bookkeeping= 1;
 
     for (k= 0; k < puz->nset; k++)
     {
 	for (i= 0; i < puz->n[k]; i++)
 	{
 	    clue= &puz->clue[k][i];
+	    nsolve= 0;
 
-	    /* Store the line length */
-	    if (puz->type == PT_GRID)
-		clue->linelen= puz->n[1-k];
-	    else
-	    {
-		/* This case will only ever be used if we support triddlers */
-		Cell **cell= sol->line[k][i];
-		for (clue->linelen= 0;
-			cell[clue->linelen] != NULL;
-			clue->linelen++)
-		    ;
-	    }
-
-	    /* Create color count array, if we are using it */
+	    /* initialize color count array */
 	    if (count_colors)
-		clue->colorcnt= (line_t *)calloc(puz->ncolor, sizeof(line_t));
-
-	    /* Compute slack and initialize color count array */
-	    fill= 0;
-	    spaces= 0;
-	    for (j= 0; j < clue->n; j++)
 	    {
-		if (j > 0 && clue->color[j-1] == clue->color[j]) spaces++;
-		fill+= clue->length[j];
-		if (count_colors)
+		/* Add up clue values to get number of cells of each color */
+		clue->colorcnt[0]= clue->linelen;
+		for (j= 0; j < clue->n; j++)
+		{
+		    clue->colorcnt[0]-= clue->length[j];
 		    clue->colorcnt[clue->color[j]]+= clue->length[j];
+		}
 	    }
-	    clue->slack= (clue->linelen - fill - spaces);
-	    if (count_colors)
-		clue->colorcnt[0]= clue->linelen - fill;
 
-	    /* Do any other line score initialization we want to do */
+	    if (count_colors || score_adjust)
+	    {
+		/* Scan line for solved cells. Subtract one from each color
+		 * count for each solved cell of that color */
+		for (j= 0; (cell= sol->line[k][i][j]) != NULL; j++)
+		    if (cell->n == 1)
+		    {
+			nsolve++;
+			if (count_colors)
+			{
+			    /* Find color of the cell */
+			    for(c= 0; c < puz->ncolor && !may_be(cell,c); c++)
+				;
+			    clue->colorcnt[c]--;
+			}
+
+		    }
+	    }
+
+	    /* If we have a line scoring function, run it, now that color
+	     * counts are correct */
 	    if (line_score != NULL)
 		clue->score= (*line_score)(puz, sol, k, i);
+
+	    /* Now apply adjustments for solved cells st line score */
+	    if (score_adjust)
+		clue->score-= score_adjust * nsolve;
 	}
     }
+}
+
+
+/* BOOKKEEPING_OFF - Shut down bookkeeping.  Actually we only really do
+ * this if we are doing much.
+ */
+
+void bookkeeping_off()
+{
+    if (count_colors || score_adjust)
+	bookkeeping= 0;
 }
 
 
@@ -472,6 +485,8 @@ void solved_a_cell(Puzzle *puz, Cell *cell, int way)
 
     /* Update our master count of number of solved cells */
     puz->nsolved+= way;
+
+    if (!bookkeeping) return;
 
     if (count_colors)
     {

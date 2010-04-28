@@ -116,7 +116,7 @@ Command line options:
 
         Use the listed algorithms.  Possible values are listed below.  The
 	order in which the options are given does not determine the order
-	in which they are tried.  Default is -aLHEP.
+	in which they are tried.  Default is -aLHEGP.
 
 	   L - LRO Line Solving.  This is normally the first thing we try,
 	       examining rows and columns one at a time, comparing the leftmost
@@ -138,7 +138,9 @@ Command line options:
 	       to make sure it really can have all of it's listed values.
 	       Doing this this is probably as likely to slow us down as speed
 	       us up, but it ensures that any puzzle solvable by line and color
-	       logic alone will be flagged as 'logical'.
+	       logic alone will be flagged as 'logical'.  You can use this
+	       as a substitute for the line solver instead of as a backup, but
+	       it is slower.
 
 	   C - Contradiction Check.  Try every possible color for every cell
 	       that has more than one possible color left, and search to see
@@ -156,11 +158,16 @@ Command line options:
 	       heuristics to guess colors for cells, continuing forward until
 	       we find either a solution or a contradiction, and then back
 	       tracking to the last guess to try something else.  This was
-	       the default in older versions of pbnsolve.  If this is set,
-	       P and M are unset.  You can further choose between three
-	       different heuristic functions, by suffixing the flag with
-               a digit, G1, G2, or G3.  None are terribly good.  G3 is the
-	       default.
+	       the default in older versions of pbnsolve.  If both guessing
+               and probing (P or M) are enabled, then probing will be used
+               first, but if it seems to be stalling, guessing will be tried
+	       for a while.
+
+	       You can further choose between three different heuristic
+	       functions, by suffixing the flag with a digit.  The G1 and G2
+	       algorithms are old and bad.  G3 is the one used in older
+	       version of pbnsolve.  G4 is the default now.  It's based on
+	       the heuristic functions used by Steve Simpson's solver.
 
 	   P - Probing.  Similar to guessing but instead of using heuristics
 	       to choose a guess, we actually explore the consequences of
@@ -169,11 +176,17 @@ Command line options:
 	       a good choice.  This can slow us down on many relatively easy
 	       puzzles, where the quality of the choice doesn't matter much,
 	       but speeds us up substantially on harder puzzles.  If this is
-	       set, G and M are unset.  Different variations of probing can
-               selected by suffixing the flag with a digit.  P1 is our old
-               probing algorithm, which probed on cells with two or more solved
-               neighbors.  P2 adds probing on all cells adjacent to cells set
-               since the last guess.  P2 is the default.
+	       set M is unset, but it can be combined with guessing (G).  In
+	       that case we mostly probe, but if it seems to be stalling,
+	       we try guessing.
+	       
+	       Different variations of probing can selected by suffixing the
+	       flag with a digit.  P1 is our old probing algorithm, which
+	       probed on cells with two or more solved neighbors.  P2 adds
+	       probing on all cells adjacent to cells set since the last
+	       guess.  P3 instead adds probing on cells who are given a good
+	       rating by the heuristic function from the guessing algorithm.
+	       P4 does all three.  P2 is the default.
 
            M - Merged Probing.  Similar to probing but whenever we probe on
 	       different possible settings for a cell, we check to see if
@@ -181,7 +194,7 @@ Command line options:
 	       If they do, set those values.  This was implemented in the
 	       hopes that it would improve performance, but the payoff is
 	       usually less than the overhead, so it seems to be a dud.
-	       Setting this unsets G and P.
+	       Setting this unsets P.
 
    -f<fmt>
         Explicitly set the input file format.  The argument should be
@@ -209,12 +222,19 @@ Command line options:
 	pbnsolve with a different default CPU limit.
 
    -t  
-        After run is completed, print statistics on run time.
+        After run is completed, print out run time and various other
+	statistics.
+
+   -i  
+   	If interupted, pause execution, print out statistics, and ask
+	the user if we should terminate or continue.  This gives a way
+	to monitor performance of long-running solves.
 
    -h  
         Run in http mode.  Output is XML-formatted in a way suitable for
 	use in an AJAX-application.  This doesn't work right with the
 	-t, -v or -b flags.
+
 
    -v<msgflags>
         Write debugging messages to standard output.  The <msgflags> are
