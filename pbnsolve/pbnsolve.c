@@ -575,8 +575,8 @@ int main(int argc, char **argv)
 	 */
     	puz->found= solution_string(puz, sol);
 
-	/* If we have the expected goal, check if the solution we found that.
-	 * if not, we can take non-uniqueness as proven without further
+	/* If we have the expected goal, check if the solution we found matches
+	 * that.  If not, we can take non-uniqueness as proven without further
 	 * searching.
 	 */
 	if (goal != NULL && strcmp(puz->found, goal))
