@@ -454,13 +454,14 @@ Recognized formats are listed below:
     Color:  black & white only
 
     Alexander Meshcheryakov's QNonograms program and Vladimir Sukhoy's C++
-    solver both use the CWD format, so I suppose it is something of a
-    Russian standard.
+    solver both use the "CWD" format, so I suppose it is something of a
+    Russian standard.  Unfortunately, the ".cwd" filename suffix is a poor
+    choice since a standard file format for crossword puzzles uses that
+    suffix too.
 
     This is another variation on the MK format, differing only in that the
-    height and width are on seperate lines, and there is always a blank
+    height and width are on separate lines, and there is always a blank
     line between the row clues and the column clues.
-
 
   ROBERT BOSCH'S LP SOLVER FORMAT
     Suffix:  "lp"
