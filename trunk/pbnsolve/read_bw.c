@@ -52,10 +52,10 @@ char *sread_nonstr()
 }
 
 
-/* Read a set of MK, NIN, or NON clues.  There is one line for each clue set,
- * which just contains the clue lengths.  Numbers on a line can be separated
- * by any number of spaces or commas.  Either a blank line or a line containing
- * just a zero will be treated as a blank clue.
+/* Read a set of MK, NIN, CWD, or NON clues.  There is one line for each clue
+ * set, which just contains the clue lengths.  Numbers on a line can be
+ * separated by any number of spaces or commas.  Either a blank line or a
+ * line containing just a zero will be treated as a blank clue.
  */
 
 int read_bw_clues(Clue *clue, line_t nclue)
@@ -180,6 +180,41 @@ Puzzle *load_mk_puzzle()
     return puz;
 }
 
+
+/* LOAD_CWD_PUZZLE - load a puzzle in .cwd format from the current source.
+ */
+
+Puzzle *load_cwd_puzzle()
+{
+    Puzzle *puz;
+    int nrow,ncol;
+    int ch;
+    char *badfmt= "Input is not in CWD format, as expected\n";
+
+    nrow= sread_pint(1);
+    if (nrow == -2) fail("Input is empty\n");
+    if (nrow <= 0) fail("load_cwd: Could not read number of rows\n");
+    skiptoeol();
+
+    ncol= sread_pint(1);
+    if (ncol <= 0) fail("load_cwd: Could not read number of columns\n");
+
+    puz= init_bw_puzzle();
+    init_clues(puz, nrow, ncol);
+
+    skiptoeol();
+
+    if (read_bw_clues(puz->clue[D_ROW], nrow)) fail(badfmt);
+
+    /* Should be a blank line between rows and columns */
+    while ((ch= sgetc()) != EOF && ch != '\n')
+	if (!isspace(ch)) fail(badfmt);
+    if (ch != '\n') fail(badfmt);
+
+    if (read_bw_clues(puz->clue[D_COL], ncol)) fail(badfmt);
+
+    return puz;
+}
 
 /* LOAD_NIN_PUZZLE - load a puzzle in .nin format from the current source.
  */

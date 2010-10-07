@@ -22,6 +22,7 @@ Puzzle *init_bw_puzzle(void);
 Puzzle *load_xml_puzzle(int index);
 Puzzle *load_mk_puzzle(void);
 Puzzle *load_nin_puzzle(void);
+Puzzle *load_cwd_puzzle(void);
 Puzzle *load_non_puzzle(void);
 Puzzle *load_pbm_puzzle(void);
 Puzzle *load_lp_puzzle(void);

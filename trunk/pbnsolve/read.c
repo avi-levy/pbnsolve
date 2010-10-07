@@ -185,6 +185,7 @@ struct {
 	{"non", FF_NON},
 	{"pbm", FF_PBM},
 	{"lp", FF_LP},
+	{"cwd", FF_CWD},
 	{NULL, FF_UNKNOWN}
     };
 
@@ -241,6 +242,10 @@ Puzzle *load_puzzle(int fmt, int index)
 
     case FF_NIN:
     	puz= load_nin_puzzle();
+	break;
+
+    case FF_CWD:
+    	puz= load_cwd_puzzle();
 	break;
 
     case FF_NON:
