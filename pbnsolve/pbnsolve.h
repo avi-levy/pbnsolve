@@ -249,6 +249,7 @@ typedef struct {
 #define FF_PBM		5	/* netpbm PBM image file */
 #define FF_LP		6	/* Bosch's format for LP solver */
 #define FF_OLSAK	7	/* The Olsak's G multicolor file format */
+#define FF_CWD		8	/* The Russian's CWD format */
 
 
 /* Debug Flags - You can disable any of these completely by just defining them

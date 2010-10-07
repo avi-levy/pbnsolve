@@ -1,3 +1,6 @@
+version 1.10 -
+  - Added support for reading CWD files.
+
 version 1.09 - Apr 28, 2010
   - Massively rewrote all the code having to do with heuristic functions,
     most of which hasn't been used in a while because we have prefered
