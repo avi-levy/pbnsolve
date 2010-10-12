@@ -1,4 +1,4 @@
-PBNSOLVE VERSION 1.08
+PBNSOLVE VERSION 1.10
 Jan Wolter
 
 This software is open source, copyrighted by Jan Wolter, but released under
@@ -108,7 +108,7 @@ Command line options:
 	is otherwise similar.
 
    -o  
-        Print a descripition of the puzzle data structure before starting
+        Print a description of the puzzle data structure before starting
 	to solve it.  This is mainly for debugging the puzzle reading
 	code.  It's not pretty.
 
@@ -220,6 +220,12 @@ Command line options:
 	abruptly terminate if it uses more than that number of CPU seconds.
 	Normally the default is zero (no limit) but it's possible to build
 	pbnsolve with a different default CPU limit.
+
+   -d<n>
+        Set a depth limit for the contradiction checking algorithm.  Since
+        contradiction checking is not enabled by default, this has no effect
+        unless the -aC flag is also given.  If this option is omitted, the
+        default depth is 2.
 
    -t  
         After run is completed, print out run time and various other
