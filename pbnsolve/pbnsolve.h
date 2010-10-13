@@ -168,7 +168,7 @@ typedef struct hist_list {
 #define HISTSIZE(puz) (sizeof(Hist) + fbit_size - bit_size(1))
 
 /* i-th element of the history array */
-#define HIST(puz,i) (Hist *)(((char *)puz->history)+(i)*HISTSIZE(puz))
+#define HIST(puz,i) ((Hist *)(((char *)puz->history)+(i)*HISTSIZE(puz)))
 
 /* Probe Merge List - settings that have been made for all probes on the
  * current cell.
@@ -332,12 +332,14 @@ extern int checksolution;
 extern int mayexhaust;
 extern int maycontradict;
 extern int contradepth;
+extern int hintlog;
 extern int maycache, cachelines;
 extern long nsprint, nplod;
 
 /* pbnsolve.c functions */
 
 void fail(const char *fmt, ...);
+void hintsnapshot(Puzzle *puz, Solution *sol);
 
 /* read.c functions */
 
@@ -361,6 +363,7 @@ char *CLUENAME(byte type, dir_t k);
 void dump_bits(FILE *fp, Puzzle *puz, bit_type *bits);
 void dump_binary(FILE *fp, bit_type *bit, int len);
 void print_solution(FILE *fp, Puzzle *puz, Solution *sol);
+void print_snapshot(FILE *fp, Puzzle *puz, Solution *sol, int bits);
 void dump_pos(FILE *fp, line_t *pos, line_t *len);
 void print_coord(FILE *fp, Puzzle *puz, Cell *cell);
 void dump_line(FILE *fp, Puzzle *puz, Solution *sol, byte k, line_t i);

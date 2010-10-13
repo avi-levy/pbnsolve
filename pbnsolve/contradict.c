@@ -15,6 +15,11 @@
 
 #include "pbnsolve.h"
 
+/* These record the line where a contradiction occurs for use in debug
+ * messages */
+dir_t cont_dir;
+line_t cont_line;
+
 
 #ifdef LINEWATCH
 #define WL(k,i) (puz->clue[k][i].watch)
@@ -38,6 +43,8 @@ int contradict(Puzzle *puz, Solution *sol)
     color_t c;
     Cell *cell;
     int rc;
+    int oldhintlog= hintlog;
+    hintlog= 0;
 
     if (VC)
     	printf("C: **** STARTING CONTRADICTION SEARCH ****\n");
@@ -84,6 +91,7 @@ int contradict(Puzzle *puz, Solution *sol)
 		     * it by a guess.  We are still hoping we'll be able
 		     * to prove the puzzle solvable without guessing.
 		     */
+		    hintlog= oldhintlog;
 		    return 1;
 		}
 		else if (rc >= 0)
@@ -99,7 +107,16 @@ int contradict(Puzzle *puz, Solution *sol)
 		    contrafound++;
 		    if (VC)
 			printf("C: CONTRADICTION ON (%d,%d)%d\n",i,j,c);
-		    
+
+		    if (oldhintlog)
+		    {
+			printf("CONTRADICT: cell r%dc%d cannot be %s. "
+			    "Would imply:\n", i+1,j+1,puz->color[c].name);
+			dump_backtrack(stdout, puz, sol);
+			printf("   contradiction in %s %d\n",
+				cluename(puz->type,cont_dir),cont_line+1);
+		    }
+
 		    /* Backtrack to the guess point, invert that */
 		    if (backtrack(puz,sol))
 		    {
@@ -114,6 +131,10 @@ int contradict(Puzzle *puz, Solution *sol)
 			print_solution(stdout,puz,sol);
 			dump_history(stdout, puz, VV);
 		    }
+		    if (oldhintlog)
+			hintsnapshot(puz,sol);
+		    
+		    hintlog= oldhintlog;
 		    return -1;
 		}
 	    }
@@ -122,5 +143,6 @@ int contradict(Puzzle *puz, Solution *sol)
 	if (sol->spiral[++n] == NULL) n= 0;
     }
 
+    hintlog= oldhintlog;
     return 0;
 }

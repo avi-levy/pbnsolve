@@ -141,7 +141,7 @@ void dump_solution(FILE *fp, Puzzle *puz, Solution *sol, int once)
     }
 }
 
-
+/* Print an unadorned solution grid. */
 void print_solution(FILE *fp, Puzzle *puz, Solution *sol)
 {
     Cell *cell;
@@ -163,6 +163,157 @@ void print_solution(FILE *fp, Puzzle *puz, Solution *sol)
     }
 }
 
+
+/* Print a solution grid adorned with row and column numbers. If bits is
+ * true, we show all color bits for each cell, instead of just printing a
+ * ? if there is more than one possible color. */
+
+void print_snapshot(FILE *fp, Puzzle *puz, Solution *sol, int bits)
+{
+    Cell *cell;
+    line_t i, j;
+    color_t l;
+    line_t ncol= sol->n[D_COL];
+    line_t nrow= sol->n[D_ROW];
+    int w= bits ? puz->ncolor+1 : 1;
+
+    /* Print column numbers */
+    if (ncol > 9)
+    {
+	fputs("    ",fp);
+	for (l= 1; l < w/2; l++) fputc(' ',fp);
+	for (j= 0; j < ncol; j++)
+	{
+	    fputc(j < 9 ? ' ' : '0'+(((j+1)/10)%10), fp);
+	    for (l= 1; l < w; l++) fputc(' ',fp);
+	}
+	fputc('\n',fp);
+    }
+    fputs("    ",fp);
+    for (l= 1; l < w/2; l++) fputc(' ',fp);
+    for (j= 0; j < ncol; j++)
+    {
+	fputc('0'+((j+1)%10), fp);
+	for (l= 1; l < w; l++) fputc(' ',fp);
+    }
+    fputc('\n',fp);
+    fputs("   +",fp);
+    for (j= 0; j < ncol*w; j++) fputc('-', fp);
+    fputc('\n',fp);
+
+    for (i= 0; i < nrow; i++)
+    {
+	fprintf(fp,"%3d|",i+1);
+	for (j= 0; (cell= sol->line[0][i][j]) != NULL; j++)
+	{
+	    if (bits)
+	    {
+		for (l= 0; l < puz->ncolor; l++)
+		    fputc(bit_test(cell->bit,l)?puz->color[l].ch:' ', fp);
+		fputc(' ',fp);
+	    }
+	    else
+	    {
+		if (cell->n > 1)
+		    fputc('?', fp);
+		else
+		    for (l= 0; l < puz->ncolor; l++)
+			if (bit_test(cell->bit, l))
+			    fputc(puz->color[l].ch, fp);
+	    }
+	}
+	fputc('\n', fp);
+    }
+}
+
+
+/* DUMP_BACKTRACK - Print a history of how we got to where we are from the
+ * last branch point.  This is complex because we want to do it without
+ * actually backtracking, so we need to use a separate separate scratch
+ * pad version of the board to backtrack in.
+ */
+
+void dump_backtrack(FILE *fp, Puzzle *puz, Solution *sol)
+{
+    color_t c;
+    char *cantbe= malloc(puz->ncolor+1);
+    char buf[1024];
+    int k,n;
+    bit_type *bit;
+    char *out= NULL;
+    int gridsize= puz->n[D_ROW]*puz->n[D_COL];
+    bit_type **grid= (bit_type **)
+	calloc(sizeof(bit_type *),gridsize);
+#define GRID(i,j) grid[i*puz->n[D_COL]+j]
+
+    /* Count the number of items to be printed */
+    for (k= puz->nhist-1, n= 0; k > 0 && !HIST(puz,k)->branch; k--, n++)
+	;
+
+    for (k= puz->nhist-1; k > 0; k--)
+    {
+	Hist *h= HIST(puz, k);
+	if (h->branch) break;
+	line_t i= h->cell->line[D_ROW];
+	line_t j= h->cell->line[D_COL];
+	int canbe= -1;
+	int cb= 0;
+	cantbe[cb]= '\0';
+
+	/* Copy current solution cells into our grid */
+	if ((bit= GRID(i,j)) == NULL)
+	{
+	    GRID(i,j)= bit= malloc(sizeof(bit_type)*fbit_size);
+	    fbit_cpy(bit, h->cell->bit);
+	}
+
+	/* See what has changed */
+	for (c= 0; c < puz->ncolor; c++)
+	{
+	    if (bit_test(bit,c))
+	    {
+	    	if (canbe == -1)
+		    canbe= c;
+		else
+		    canbe= -2;
+	    }
+	    else if (bit_test(h->bit,c))
+	    {
+		cantbe[cb++]= puz->color[c].ch;
+		cantbe[cb]= '\0';
+	    }
+	}
+	if (canbe >= 0)
+	    sprintf(buf,"r%dc%d is %c",i+1,j+1,puz->color[canbe].ch);
+	else
+	    sprintf(buf,"r%dc%d not %s",i+1,j+1,cantbe);
+	if (out == NULL)
+	{
+	    out= strdup(buf);
+	}
+	else
+	{
+	    char *new= malloc(strlen(buf)+10+strlen(out));
+	    strcpy(new,buf);
+	    n= (n-1)%5;
+	    strcat(new,n == 0 ?" ;\n   ":" ; ");
+	    strcat(new,out);
+	    free(out);
+	    out= new;
+	}
+    }
+
+    fputs("   ",fp);
+    fputs(out,fp);
+    fputs(" ;\n",fp);
+
+    /* Deallocate dynamic memory */
+    free(out);
+    int x;
+    for (x= 0; x < gridsize; x++)
+	if (grid[x] != NULL) free(grid[x]);
+    free(grid);
+}
 
 void dump_puzzle(FILE *fp, Puzzle *puz)
 {

@@ -99,11 +99,13 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
     color_t c, realn;
     dir_t k;
     line_t *soln;
-    int hits= 0, setcell;
+    int hits= 0, setcell, snap= 0;
     Cell *cell;
-    bit_type *realbit= (bit_type *) malloc(fbit_size * sizeof(bit_type));
-    byte *rowpad, **colpad, *pad;
     Hist *h;
+    byte *rowpad, **colpad, *pad;
+    bit_type *realbit= (bit_type *) malloc(fbit_size * sizeof(bit_type));
+    extern dir_t cont_dir;
+    extern line_t cont_line;
 
     exh_runs++;
 
@@ -180,12 +182,20 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 			    printf("%c: CELL (%d,%d) CAN'T BE COLOR %d\n",
 				VS?'S':'E', i,j, c);
 
+			if (hintlog)
+			{
+			    printf("EXHAUSTIVE: cell r%dc%d can't be %s\n",
+				    i+1,j+1, puz->color[c].name);
+			    snap= 1;
+			}
+
 			/* If this was the last possible color for the cell,
 			 * then we have hit a contradiction, and halt */
 			if (realn == 1)
 			{
 			    if (VE) printf("E: Contradiction! Quitting.\n");
 			    exh_cells+= hits;
+			    cont_dir= k; cont_line= cell->line[k];
 			    return -1;
 			}
 
@@ -223,6 +233,8 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 	    /* Restore the saved bits (possibly changed) to the cell */
 	    fbit_cpy(cell->bit, realbit);
 	    cell->n= realn;
+
+	    if (snap) {hintsnapshot(puz,sol); snap= 0;}
 
 	    /* If we changed anything, add crossing jobs to job list */
 	    if (setcell > 0)
