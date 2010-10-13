@@ -53,8 +53,11 @@ void guess_cell(Puzzle *puz, Solution *sol, Cell *cell, color_t c)
  * Returns 0 if a contradiction was found, one otherwise.
  */
 
+
 int line_solve(Puzzle *puz, Solution *sol, int contradicting)
 {
+    extern dir_t cont_dir;
+    extern line_t cont_line;
     dir_t dir;
     line_t i;
     int depth;
@@ -82,12 +85,14 @@ int line_solve(Puzzle *puz, Solution *sol, int contradicting)
 		if ((VC&&VV) || WL(dir,i))
 		    printf("C: %s %d FAILED AT DEPTH %d\n",
 			cluename(puz->type,dir),i,depth);
+		if (contradicting) {cont_dir= dir; cont_line= i;}
 		return 0;
 	    }
 	}
 	else if (!apply_lro(puz, sol, dir, i, depth + 1))
 	{
 	    /* Found a contradiction */
+	    if (contradicting) {cont_dir= dir; cont_line= i;}
 	    return 0;
 	}
 
@@ -215,6 +220,12 @@ int solve(Puzzle *puz, Solution *sol)
 
 	    /* Stop if no guessing is allowed */
 	    if (!maybacktrack) return 1;
+
+	    if (hintlog)
+	    {
+		printf("STARTING SEARCH: EXPLANATION SHUTTING DOWN...\n");
+		hintlog= 0;
+	    }
 	    
 	    /* Shut down the exhaustive search once we start searching */
 	    if (maylinesolve) mayexhaust= 0;

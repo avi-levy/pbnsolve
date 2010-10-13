@@ -29,6 +29,7 @@ int verb[NVERB];
 int maybacktrack= 1, mayexhaust= 1, maycontradict= 0, maycache= 1;
 int mayguess= 1, mayprobe= 1, mergeprobe= 0, maylinesolve= 1;
 int contradepth= 2;
+int hintlog= 0, hintlogn= -1;
 int checkunique= 0;
 int checksolution= 0;
 int cachelines= 0;
@@ -192,6 +193,7 @@ void intr(int sig)
 #define SN_INDEX 2
 #define SN_CPU 3
 #define SN_CDEPTH 4
+#define SN_HINTLOG 5
 
 int main(int argc, char **argv)
 {
@@ -323,6 +325,11 @@ int main(int argc, char **argv)
 			case SN_CDEPTH:
 			    contradepth= 10*contradepth + argv[i][j] - '0';
 			    continue;
+
+			case SN_HINTLOG:
+			    if (hintlogn < 0) hintlogn= 0;
+			    hintlogn= 10*hintlogn + argv[i][j] - '0';
+			    continue;
 			}
 			goto usage;
 		    }
@@ -375,6 +382,10 @@ int main(int argc, char **argv)
 		    case 'i':
 			catch_intr= 1;
 			break;
+		    case 'm':
+			hintlog= 1;
+			setnumber= SN_HINTLOG;
+			break;
 		    case 'u':
 			checkunique= 1;
 			break;
@@ -413,7 +424,8 @@ int main(int argc, char **argv)
 		if ( (setnumber == SN_START && startsol > 0) ||
 		     (setnumber == SN_INDEX && pindex > 0) ||
 		     (setnumber == SN_CPU && cpulimit > 0) ||
-		     (setnumber == SN_CDEPTH && contradepth > 0) )
+		     (setnumber == SN_CDEPTH && contradepth > 0) ||
+		     (setnumber == SN_HINTLOG && hintlogn > 0) )
 			setnumber= SN_NONE;
 	    }
 	    else if (setformat)
@@ -428,6 +440,7 @@ int main(int argc, char **argv)
 		else if (setnumber == SN_INDEX) pindex= n;
 		else if (setnumber == SN_CPU) cpulimit= n;
 		else if (setnumber == SN_CDEPTH) contradepth= n;
+		else if (setnumber == SN_HINTLOG) hintlog= n;
 		setnumber= SN_NONE;
 	    }
 	    else if (filename == NULL)
@@ -436,6 +449,7 @@ int main(int argc, char **argv)
 		goto usage;
 	}
 	if (pindex < 1) pindex= 1;
+	if (hintlogn < 0) hintlogn= 10;
 
 	/* Uniqueness checking (ie, looking to see if there is another
 	 * solution if the first one we found wasn't logically arrived at)
@@ -731,10 +745,21 @@ int main(int argc, char **argv)
     exit(0);
 
 usage:
-    fprintf(stderr,"usage: %s [-cdehu] [-s#] [-n#] [-x#] [-aLEHGPM] [-vABEGJLMPUSV] [<filename>]\n",
+    fprintf(stderr,"usage: %s [-cdehu] [-s#] [-n#] [-x#] [=m#] [-aLEHGPM] [-vABEGJLMPUSV] [<filename>]\n",
     	argv[0]);
     exit(1);
 }
+
+int hintsnapcnt= 0;
+void hintsnapshot(Puzzle *puz, Solution *sol)
+{
+    if (hintlogn > 0 && ++hintsnapcnt > hintlogn)
+    {
+	print_snapshot(stdout,puz,sol,puz->ncolor > 2);
+	hintsnapcnt= 0;
+    }
+}
+
 
 void fail(const char *fmt, ...)
 {

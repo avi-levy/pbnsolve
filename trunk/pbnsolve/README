@@ -7,7 +7,7 @@ an Apache 2.0 License.
 This software usually requires libxml2 which seems to be available on most
 modern Unix systems.  It is also available from http://xmlsoft.org/.
 
-It is possible to build pbnsolve without this by setting a flag in the
+It is possible to build pbnsolve without libxml2 by setting a flag in the
 config.h file, but all the supported non-xml input file formats are rather
 pathetic so this will pretty seriously cripple pbnsolve.  People only
 interested in black and white puzzle might be able to get by with that.
@@ -48,7 +48,7 @@ Usage:
 
 Run syntax is:
 
-   pbnsolve -[bdhlopt] -[v<msgflags>] [-n<n>] [-s<n>] [-x<n>]
+   pbnsolve -[bdhlopt] -[v<msgflags>] [-n<n>] [-s<n>] [-x<n>] [-d<depth>]
    	[-f<fmt>] [-a<algorithm>] [<datafile>]
 
 Input files may be in any of too many formats, described in the "Input Format"
@@ -214,6 +214,18 @@ Command line options:
 	<n> is the number of the input to use, if there is more than one.
 	If the number is omitted it defaults to 1.
 
+   -m or -m<cnt>
+        Turns on printing of explanation messages, which try to explain
+        how pbnsolve solved the puzzle.  Explanations are printed for
+        linesolving (-aL), exhaustive search (-aE) and contradicting (-aC)
+        but not for heuristic search, because that would typically result
+        in far too much output.  Note that in explanation messages we
+        refer to rows and columns by one-based numbers, while in debug
+        messages we use zero-based columns, which is confusing if you turn
+        both on at once.  If a count is given, it tells how often to print
+        a snapshot of the board.  If no count is given, a snapshot will
+        be printed after every tenth message.
+
    -x<secs>
         Set a limit on the CPU time used by pbnsolve.  If <secs> is zero
 	or omitted, then there is no CPU limit, otherwise pbnsolve will
@@ -250,12 +262,15 @@ Command line options:
 	
 	   A - Top level messages.
 	   B - Backtracking messages.
-	   E - Messages from exhaustive check done before starting to guess.
+           C - Contradiction search message (with -aC)
+	   E - Messages from exhaustive check (with -aE)
 	   G - Messages from guessing.
+	   H - Messages from hashing.
 	   J - Job management messages.
 	   L - Linesolver messages.  (disabled by default)
 	   M - Merging Messages.
 	   P - Probing Messages.
+	   Q - Probing Statistics.
 	   U - Messages from Undo code used when backtracking.
 	   S - Cell State change messages.
 	   V - Extraverbosity when used with any of the above.

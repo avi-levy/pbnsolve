@@ -1508,6 +1508,7 @@ int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth)
     color_t z;
     bit_type new, *old;
     int newsol= 0;
+    line_t nchange= 0;
 
     if ((VC && VV) && depth > 0)
     	printf("C: SOLVING %s %d at DEPTH %d\n",
@@ -1542,6 +1543,8 @@ int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth)
 	    new= (colbit(j)[z] & cell[j]->bit[z]);
 	    if (cell[j]->bit[z] != new)
 	    {
+		nchange++;
+
 		/* Do probe merging (maybe) */
 		if (merging) merge_set(puz, cell[j], colbit(j));
 
@@ -1597,6 +1600,13 @@ int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth)
 
     /* If we are caching and computed a new solution, cache it */
     if (newsol) add_cache(puz, sol, k, i);
+
+    if (hintlog && nchange > 0)
+    {
+	printf("LINESOLVER: %s %d - update %d cells\n",
+	    cluename(puz->type,k),i+1,nchange);
+	hintsnapshot(puz,sol);
+    }
 
     return 1;
 }
