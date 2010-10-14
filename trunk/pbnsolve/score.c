@@ -14,16 +14,22 @@
  */
 
 /*
- * This file contains functions to evauluite and select guesses when
+ * This file contains functions to evaluate and select guesses when
  * doing heuristic search.  It's meant to be highly reconfigurable to
  * aide with experimentation with different heuristics.
+ *
+ * Note that none of this is used when we are probing.  It's all for the
+ * heuristic search algorithm.
  */
 
 #include "pbnsolve.h"
 
+#define GOALC(r,c) (puz->goal[r*puz->n[D_COL]+c])
+
 int count_colors= 0;	/* Should we count colors in each line? */
 int score_adjust= 0;	/* Subtraction from line score when cell is solved */
 int bookkeeping= 0;	/* Is bookkeeping for the above currently on? */
+int need_goal_array= 0;	/* Do we need the goal array? */
 
 
 /* ----------------- LINE SCORE INITIALIZATION FUNCTIONS ----------------- */
@@ -325,6 +331,50 @@ color_t pick_color_prob(Puzzle *puz, Solution *sol, Cell *cell)
     return bestc;
 }
 
+/* This points to a pick_color function to fall back to */
+
+color_t (*pick_color_fallback)(Puzzle *puz, Solution *sol, Cell *cell);
+
+/* PICK_COLOR_RIGHT - Pick the correct color for each cell.  This obviously
+ * only works if we have a solution image and are trying to validate it.
+ */
+
+color_t pick_color_right(Puzzle *puz, Solution *sol, Cell *cell)
+{
+    color_t c= GOALC(cell->line[D_ROW],cell->line[D_COL]);
+
+    /* If that color is still a possibility, use it */
+    if (may_be(cell,c))
+	return c;
+
+    /* Otherwise, fall back to another algorithm - this only happens in
+     * multicolor puzzles. */
+    return pick_color_fallback(puz, sol, cell);
+}
+
+
+/* PICK_COLOR_WRONG - Pick an incorrect color for each cell.  This obviously
+ * only works if we have a solution image and are trying to validate it.
+ */
+
+color_t pick_color_wrong(Puzzle *puz, Solution *sol, Cell *cell)
+{
+    color_t c;
+    color_t notc= GOALC(cell->line[D_ROW],cell->line[D_COL]);
+
+    if (puz->ncolor == 2) return 1-notc;
+
+    if (may_be(cell,notc))
+    {
+	bit_clear(cell->bit, notc);
+	c= pick_color_fallback(puz, sol, cell);
+	bit_set(cell->bit, notc);
+    }
+    else
+	c= pick_color_fallback(puz, sol, cell);
+    return c;
+}
+
 
 /* This points to the pick_color function currently being used */
 
@@ -408,6 +458,45 @@ void bookkeeping_off()
 {
     if (count_colors || score_adjust)
 	bookkeeping= 0;
+}
+
+/* MAKE_GOAL_ARRAY - Encode the goal solution in a form easily used by the
+ * pick_color_right() or or pick_color_wrong() functions.
+ */
+
+void make_goal_array(Puzzle *puz)
+{
+    SolutionList *sl;
+    Solution *s= NULL;
+    Cell *cell;
+    line_t i, j;
+    color_t c;
+
+    if (!need_goal_array) return;
+
+    /* Find the solution */
+    for (sl= puz->sol; sl != NULL; sl= sl->next)
+	if (sl->type == STYPE_GOAL)
+	{
+	    s= &sl->s;
+	    break;
+	}
+    if (s == NULL)
+	fail("Heuristic function requires a goal solution, "
+	     "but none was given.");
+
+    /* Allocate the goal color array */
+    puz->goal= (color_t *)malloc(puz->n[D_ROW]*puz->n[D_COL]*sizeof(color_t));
+
+    /* Fill it in */
+    for (i= 0; i < s->n[0]; i++)
+    	for (j= 0; (cell= s->line[0][i][j]) != NULL; j++)
+	    for (c= 0; c < puz->ncolor; c++)
+		if (may_be(cell, c))
+		{
+		    GOALC(i,j)= c;
+		    break;
+		}
 }
 
 
@@ -574,6 +663,26 @@ int set_scoring_rule(int n, int may_override)
 	line_score= &line_score_simpson;
 	pick_color= &pick_color_prob; count_colors= 1;
 	score_adjust= 1;
+	return 1;
+
+    case 5: 
+	/* Pick right colors */
+	cell_score_1= &cell_score_neighbor;
+	cell_score_2= cell_score_min;
+	line_score= &line_score_adhoc;
+	pick_color= &pick_color_right;
+	pick_color_fallback= &pick_color_contrast;
+	need_goal_array= 1;
+	return 1;
+
+    case 6: 
+	/* Pick wrong colors */
+	cell_score_1= &cell_score_neighbor;
+	cell_score_2= cell_score_min;
+	line_score= &line_score_adhoc;
+	pick_color= &pick_color_wrong;
+	pick_color_fallback= &pick_color_contrast;
+	need_goal_array= 1;
 	return 1;
     }
 

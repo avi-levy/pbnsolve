@@ -167,7 +167,9 @@ Command line options:
 	       functions, by suffixing the flag with a digit.  The G1 and G2
 	       algorithms are old and bad.  G3 is the one used in older
 	       version of pbnsolve.  G4 is the default now.  It's based on
-	       the heuristic functions used by Steve Simpson's solver.
+	       the heuristic functions used by Steve Simpson's solver.  G5
+               and G6 are experimental functions that try to use information
+               from a known solution to make guesses.  They work very badly.
 
 	   P - Probing.  Similar to guessing but instead of using heuristics
 	       to choose a guess, we actually explore the consequences of
