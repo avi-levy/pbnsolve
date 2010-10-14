@@ -237,6 +237,7 @@ typedef struct {
     Hist *history;	/* Undo history, if any */
     int nhist,shist;	/* Number of things in history, and size of history */
     char *found;	/* A stringified solution we have found, if any */
+    color_t *goal;	/* A goal image used by pick_color_right() */
 } Puzzle;
 
 /* Various file formats that we can read */
@@ -417,6 +418,7 @@ int logic_solve(Puzzle *puz, Solution *sol, int contradicting);
 int solve(Puzzle *puz, Solution *sol);
 
 /* score.c function */
+void make_goal_array(Puzzle *puz);
 void bookkeeping_on(Puzzle *puz, Solution *sol);
 void bookkeeping_off();
 Cell *pick_a_cell(Puzzle *puz, Solution *sol);

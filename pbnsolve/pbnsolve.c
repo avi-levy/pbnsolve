@@ -547,6 +547,7 @@ int main(int argc, char **argv)
 	sol= new_solution(puz);
 
     if (statistics) sclock= clock();
+    make_goal_array(puz);
     clue_init(puz, sol);
     init_jobs(puz, sol);
     if (VJ)

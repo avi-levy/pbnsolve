@@ -1,6 +1,8 @@
 version 1.10 -
   - Added support for reading CWD files.
   - Added -m flag to turn on printing of explanations.
+  - Added some experimental search heuristics (-aG5 and -aG6) which draw on
+    the given goal solution.  These aren't very effective in most cases.
 
 version 1.09 - Apr 28, 2010
   - Massively rewrote all the code having to do with heuristic functions,
