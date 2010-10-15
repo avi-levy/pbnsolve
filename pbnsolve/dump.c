@@ -242,6 +242,8 @@ void dump_backtrack(FILE *fp, Puzzle *puz, Solution *sol)
     bit_type *bit;
     char *out= NULL;
     int gridsize= puz->n[D_ROW]*puz->n[D_COL];
+    /* I should have used a simple array indexed by the cell.id fields, but
+     * I forgot that they existed and it's not worth rewriting this now */
     bit_type **grid= (bit_type **)
 	calloc(sizeof(bit_type *),gridsize);
 #define GRID(i,j) grid[i*puz->n[D_COL]+j]
