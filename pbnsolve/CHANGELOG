@@ -1,3 +1,6 @@
+branch version -
+  - Maintain a bitstring of legal block positions for each clue number.
+
 version 1.10 -
   - Added support for reading CWD files.
   - Added -m flag to turn on printing of explanations.
