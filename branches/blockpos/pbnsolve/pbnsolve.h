@@ -60,9 +60,9 @@ typedef char byte;	/* various small numbers */
 typedef struct {
     line_t line[3];	/* 2 or 3 line numbers of this cell */
     line_t index[3];	/* 2 or 3 indexes of this cell in those lines */
+    line_t id;		/* A unique number in (0,rows*cols-1) for this cell */
     color_t n;		/* Number of bits set in the bit string */
     bit_decl(bit,1);	/* bit string with 1 for each possible color */
-    line_t id;		/* A unique number in (0,rows*cols-1) for this cell */
 
     /* Do not define any fields after 'bit'.  When we allocate memory for this
      * data structure, we will actually be allocating more if we need longer
