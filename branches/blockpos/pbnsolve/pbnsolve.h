@@ -76,6 +76,8 @@ typedef struct {
 
 /* Macro to test if a cell may be a given color */
 #define may_be(cell,color)  bit_test(cell->bit,color)
+/* Macro to test if a block may be at given location */
+#define may_place(clue,i,pos) bit_test(clue->pbit[i],pos)
 /* Macro to test if a bitstring may be background color */
 #define bit_bg(bit) (*(bit) & 1)
 /* Macro to test if a cell may be background color */
@@ -105,28 +107,24 @@ typedef struct solution_list {
 } SolutionList;
 
 
-/* Clue Structure - describes a row or column clue.  We cache the last
- * left-most and right-most solutions to this row, to use as a starting point
- * the next time we need to find such solutions for the row.  These can't
- * be used anymore if we backtrack past the point where they were created,
- * so we remember the history array index at that time.  If we backtrack,
- * we reset the timestamps to LINEMAX so they will continue to look invalid
- * as we go forward again. */
+/* Clue Structure - describes a row or column clue.
+ * For each clue number we maintain a bitstring of length linelength that
+ * has all of it's possible starting positions for the current solution
+ * flagged with a 1 bit.
+ */
 
 typedef struct {
     line_t n,s;		/* Number of clues and size of array */
     line_t *length;	/* Array of n clue lengths */
     color_t *color;	/* Array of n clue colors (indexes into puz->color) */
     line_t linelen;	/* Number of cells in this line */
+    bit_type **pbit;	/* Array of n pointers to position bitstrings */
+    line_t *pmin;	/* Leftmost possible position of each block */
+    line_t *pmax;	/* Rightmost possible position of each block */
     int jobindex;	/* Where is this clue on the job list? -1 if not. */
     line_t slack;	/* Amount of slack in this clue */
     float score;	/* A heuristic score for this line */
     line_t *colorcnt;	/* Counts of each color in this line */
-    line_t *lpos,*rpos;	/* Last result from left_solve() and right_solve() */
-    line_t *lcov,*rcov;	/* Coverage arrays that go with lpos, and rpos */
-    line_t lbadb,rbadb;	/* Bad interval index in lpos,rpos. LINEMAX if none */
-    line_t lbadi,rbadi;	/* Cell index spoiling lpos,rcov.  LINEMAX if none  */
-    int lstamp,rstamp;	/* nhist value at time that lpos,rpos were computed */
 #ifdef LINEWATCH
     byte watch;		/* True if we are watching this line */
 #endif
@@ -151,24 +149,33 @@ typedef struct {
     line_t n;		/* Index of line that needs work */
 } Job;
 
-/* History of things set, used for backtracking */
+/* History of things set, used for backtracking.  This forms a linked list,
+ * with the most recent item at the head. We have two kinds of objects on
+ * the list, changes to the possible colors for cells and changes to the
+ * possible positions of blocks. */
 
 typedef struct hist_list {
-    byte branch;	/* Was this a branch point? */
-    Cell *cell;		/* The cell that was set */
-    color_t n;		/* Old n value of cell */
-    bit_decl(bit,1);	/* Old bit string of cell */
+    byte branch;		/* Was this a branch point? */
+    char type;			/* 'C'=cell or 'P'=block position */
+    struct hist_list *prev;	/* Previous element on history list */
+    union {
+	Cell *cell;		/* The cell that was set */
+	struct {
+	    Clue *clue;		/* The clue containing the block that was set */
+	    line_t i;		/* The index of the block that was set */
+	} p;
+    } w;
+    color_t n;			/* Number of 1 bits in old bit string */
+    bit_decl(bit,1);		/* Old bit string */
     /* Do not define any fields after 'bit'.  When we allocate memory for this
      * data structure, we will actually be allocating more if we need longer
      * bitstrings.
      */
 } Hist;
 
-/* Size of a history element */
-#define HISTSIZE(puz) (sizeof(Hist) + fbit_size - bit_size(1))
-
-/* i-th element of the history array */
-#define HIST(puz,i) ((Hist *)(((char *)puz->history)+(i)*HISTSIZE(puz)))
+/* Size of a history elements */
+#define HISTCELLSZ(puz) (sizeof(Hist) + fbit_size - bit_size(1))
+#define HISTBLKSZ(n) (sizeof(Hist) + bit_size(n) - bit_size(1))
 
 /* Probe Merge List - settings that have been made for all probes on the
  * current cell.

@@ -23,7 +23,7 @@ pbnsolve.o: pbnsolve.c pbnsolve.h read.h bitstring.h config.h
 dump.o: dump.c pbnsolve.h bitstring.h config.h
 grid.o: grid.c pbnsolve.h bitstring.h config.h
 puzz.o: puzz.c pbnsolve.h bitstring.h config.h
-line_lro.o: line_lro.c pbnsolve.h bitstring.h config.h
+line_lro.o: line_lro.c line_generic.c pbnsolve.h bitstring.h config.h
 line_cache.o: line_cache.c pbnsolve.h bitstring.h config.h
 job.o: job.c pbnsolve.h bitstring.h config.h
 solve.o: solve.c pbnsolve.h bitstring.h config.h
@@ -55,7 +55,7 @@ TARBALL= README CHANGELOG Makefile \
 	pbnsolve.c puzz.c read.c read_xml.c solve.c testgamma.c \
 	clue.c dump.c gamma.c grid.c http.c job.c line_lro.c merge.c \
 	exhaust.c testline.c probe.c contradict.c bit.c read_olsak.c \
-	line_cache.c score.c
+	line_cache.c score.c line_generic.c
 
 pbnsolve.tgz: $(TARBALL)
 	tar cvzf pbnsolve.tgz $(TARBALL)
