@@ -41,7 +41,7 @@ bit_type *oldval;
 
 void init_line(Puzzle *puz)
 {
-    line_t maxnclue= 0, maxdimension= 0;
+    line_t maxcluelen= 0, maxdimension= 0;
     line_t i;
     dir_t k;
 
@@ -59,7 +59,7 @@ void init_line(Puzzle *puz)
 
     	for (i= 0; i < puz->n[k]; i++)
 	{
-	    if (puz->clue[k][i].n > maxnclue) maxnclue= puz->clue[k][i].n;
+	    if (puz->clue[k][i].n > maxcluelen) maxcluelen= puz->clue[k][i].n;
 
 	    /* Allocate a left and right saved position array for each clue.
 	     * Note that these are -1 terminated, so they have 1 added to
@@ -93,9 +93,9 @@ void init_line(Puzzle *puz)
      * use these instead of the ones in the Clue structure if we don't want
      * to save the results of the solution.
      */
-    lpos= (line_t *)malloc((maxnclue + 1) * sizeof(line_t));
-    rpos= (line_t *)malloc((maxnclue + 1) * sizeof(line_t));
-    gcov= (line_t *)malloc(maxnclue * sizeof(int));
+    lpos= (line_t *)malloc((maxcluelen + 1) * sizeof(line_t));
+    rpos= (line_t *)malloc((maxcluelen + 1) * sizeof(line_t));
+    gcov= (line_t *)malloc(maxcluelen * sizeof(int));
 
     /* An extra color bit map for apply_lro */
     oldval= (bit_type*)malloc(fbit_size * sizeof(bit_type));
@@ -661,7 +661,7 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 	     *    cells of the block can accomodate the block's color.  j
 	     *    is the index of the first cell after the block.  currcolor
 	     *    is the color of the current block b.
-	     * Action:  Check if the first cell of the block is a legal
+	     * Action:  Check if the first cell after the block is a legal
 	     *    color.  If it is the same color as the block, try advancing
 	     *    the block to cover that too.  If backtracking is true,
 	     *    also ensure the block covers something, and advance it until
@@ -1149,9 +1149,9 @@ line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 	    /* Precondition: Blocks maxblock through b+1 have been legally
 	     *    placed or b = maxblock.  pos[b] points points to a position
 	     *    so that all cells of the block can accomodate the block's
-	     *    color.  j is the next of the first cell after the block.
+	     *    color.  j is the index of the first cell after the block.
 	     *    currcolor is the color of the current block b.
-	     * Action:  Check if the first cell of the block is a legal
+	     * Action:  Check if the first cell after the block is a legal
 	     *    color.  If it is the same color as the block, try advancing
 	     *    the block to cover that too.  If backtracking is true,
 	     *    also ensure the block covers something, and advance it until

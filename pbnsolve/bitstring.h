@@ -99,7 +99,7 @@ extern int fbit_size;
 	 * Return a mask with zeros followed by N ones
 	 */
 #define bit_zeroone(N) \
-    	(_bit_1s >> (_bit_intsiz + N))
+    	(_bit_1s >> (_bit_intsiz - (N)))
 
 /*
  * (macros used externally)
@@ -150,7 +150,7 @@ extern int fbit_size;
 #endif
 
 	/*
-	 * set bits 0..N in string Name
+	 * set all bits in size N string Name
 	 */
 #define	bit_setall(Name, N) \
 	{	register _bit_i; \
@@ -173,7 +173,7 @@ extern int fbit_size;
 #endif
 
 	/*
-	 * clear bits 0..N in string Name
+	 * clear all bits in size N string Name
 	 */
 #define	bit_clearall(Name, N) \
 	{	register _bit_i; \
