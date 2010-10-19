@@ -30,10 +30,10 @@
 
 /* Allocate some arrays to be used in left_solve(), right_solve(), and
  * lro_solve() to a size appropriate for puzzle puz.  Also creates the
- * saved position arrays that go in the puz->clue data structure.
+ * block position bit strings in the clue data structures.
  */
 
-static line_t *lpos, *rpos, *gcov;
+static line_t *lpos, *rpos, *cov;
 static line_t *nbcolor;
 static bit_type *col;
 static int multicolor;
@@ -41,9 +41,10 @@ bit_type *oldval;
 
 void init_line(Puzzle *puz)
 {
-    line_t maxnclue= 0, maxdimension= 0;
-    line_t i;
+    line_t maxcluelen= 0, maxdimension= 0;
+    line_t i, j, m;
     dir_t k;
+    Clue *clue;
 
     /* Set a flag if the puzzle is multicolored.  If not, we can skip some
      * tests which will never be true and be just a bit more efficient.
@@ -59,33 +60,21 @@ void init_line(Puzzle *puz)
 
     	for (i= 0; i < puz->n[k]; i++)
 	{
-	    if (puz->clue[k][i].n > maxnclue) maxnclue= puz->clue[k][i].n;
+	    clue= &(puz->clue[k][i]);
+	    if (clue->n > maxcluelen) maxcluelen= clue->n;
 
-	    /* Allocate a left and right saved position array for each clue.
-	     * Note that these are -1 terminated, so they have 1 added to
-	     * their size.  */
-	    puz->clue[k][i].lpos=
-		(line_t *)malloc((puz->clue[k][i].n + 1) * sizeof(line_t));
-	    puz->clue[k][i].lpos[puz->clue[k][i].n]= -1;
-	    puz->clue[k][i].rpos=
-		(line_t *)malloc((puz->clue[k][i].n + 1) * sizeof(line_t));
-	    puz->clue[k][i].rpos[puz->clue[k][i].n]= -1;
+	    clue->pbit= (bit_type **)malloc(sizeof(bit_type *)*clue->n);
+	    clue->pmin= (line_t *)malloc(sizeof(line_t)*(clue->n+1));
+	    clue->pmax= (line_t *)malloc(sizeof(line_t)*(clue->n+1));
 
-	    /* Allocate a left and right coverage array for each clue */
-	    puz->clue[k][i].lcov=
-		(line_t *)malloc(puz->clue[k][i].n * sizeof(line_t));
-	    puz->clue[k][i].rcov=
-		(line_t *)malloc(puz->clue[k][i].n * sizeof(line_t));
-
-	    /* Setting lbadb and rbadb to -1 means no saved solutions yet.
-	     * Setting them to MAXINT means a valid solution.
-	     */
-	    puz->clue[k][i].lbadb= -1;
-	    puz->clue[k][i].rbadb= -1;
-	    puz->clue[k][i].lbadi= MAXLINE;
-	    puz->clue[k][i].rbadi= -1;
-	    puz->clue[k][i].lstamp= MAXLINE;
-	    puz->clue[k][i].rstamp= MAXLINE;
+	    for (j= 0; j < clue->n; j++)
+	    {
+		clue->pmin[j]= 0;
+		clue->pmax[j]= m= clue->linelen - clue->length[j];
+		clue->pbit[j]=
+		    (bit_type *)calloc(bit_size(m+1),sizeof(bit_type));
+		bit_setall(clue->pbit[j], m);
+	    }
 	}
     }
 
@@ -93,9 +82,9 @@ void init_line(Puzzle *puz)
      * use these instead of the ones in the Clue structure if we don't want
      * to save the results of the solution.
      */
-    lpos= (line_t *)malloc((maxnclue + 1) * sizeof(line_t));
-    rpos= (line_t *)malloc((maxnclue + 1) * sizeof(line_t));
-    gcov= (line_t *)malloc(maxnclue * sizeof(int));
+    lpos= (line_t *)malloc((maxcluelen + 1) * sizeof(line_t));
+    rpos= (line_t *)malloc((maxcluelen + 1) * sizeof(line_t));
+    cov= (line_t *)malloc(maxcluelen * sizeof(int));
 
     /* An extra color bit map for apply_lro */
     oldval= (bit_type*)malloc(fbit_size * sizeof(bit_type));
@@ -120,280 +109,16 @@ void dump_lro_solve(Puzzle *puz, dir_t k, line_t i, bit_type *col)
 }
 
 
-/* A cell i of the line for the given clue has been changed to the given new
- * bit string value.  Check to what degree the stored left solution for that
- * line has been invalidated.  Returns 0 if old solution is still OK, 1 if
- * this cell change, or a previous cell change, invalidated it.  If it's newly
- * invalidated, store some information on how much is invalidated.
- */
-
-int left_check(Clue *clue, line_t i, bit_type *bit)
-{
-    line_t b;
-
-    /* If there is no saved solution, don't check it */
-    if (clue->lbadb == -1) return 1;
-
-    /* If the line is already marked bad because of the same cell or a cell
-     * to the left of this cell, then we don't need to do more checking.
-     */
-    if (clue->lbadi <= i) return 1;
-
-    /* Find the interval containing the changed cell */
-    for (b= clue->n - 1; b >= 0; b--)
-    	if (i >= clue->lpos[b])
-	{
-	    if (i < clue->lpos[b] + clue->length[b])
-	    {
-	    	/* changed cell is inside block b */
-		if (bit_test(bit, clue->color[b]))
-		{
-		    /* If we've set the cell non-white and it is left of
-		     * anything the block was previously covering, update cov */
-		    if ((clue->lcov[b] == -1 || i < clue->lcov[b]) &&
-		        (!multicolor || !bit_bg(bit)))
-			    clue->lcov[b]= i;
-		    return clue->lbadb != MAXLINE;
-		}
-		clue->lbadb= 2*b + 1;
-		if (D)
-		    printf("L:  OLD LEFT SOLN BAD - BLOCK %d INT %d\n",
-			b, clue->lbadb);
-	    }
-	    else
-	    {
-	    	/* changed cell is between block b and the next block */
-		if (bit_bg(bit))
-		    return clue->lbadb != MAXLINE;
-		clue->lbadb= 2*b + 2;
-		if (D)
-		    printf("L:  OLD LEFT SOLN BAD - GAP %d INT %d\n",
-			b, clue->lbadb);
-	    }
-	    clue->lbadi= i;
-	    return 1;
-	}
-    /* If we drop out of loop, then we invalidated a cell left of the
-     * leftmost block.  This should never really happen, as all those cells
-     * should have been painted with the background color long ago.  However,
-     * if it happens anyway, invalidate the whole line.
-     */
-    clue->lbadb= -1;
-    clue->lbadi= i;
-    if (D)
-	printf("L:  OLD LEFT SOLN BAD BEFORE FIRST BLOCK\n");
-    return  1;
-}
-
-
-int right_check(Clue *clue, line_t i, bit_type *bit)
-{
-    line_t b;
-
-    /* If there is no saved solution, don't check it */
-    if (clue->rbadb == -1) return 1;
-
-    /* If the line is already marked bad because of the same cell or a cell
-     * to the right of this cell, then we don't need to do more checking.
-     */
-    if (clue->rbadi >= i) return 1;
-
-    /* Find the interval containing the changed cell */
-    for (b= 0; b < clue->n; b++)
-    	if (i <= clue->rpos[b])
-	{
-	    if (i > clue->rpos[b] - clue->length[b])
-	    {
-	    	/* changed cell is inside block b */
-		if (bit_test(bit, clue->color[b]))
-		{
-		    /* If we've set the cell non-white and it is right of
-		     * anything the block was previously covering, update cov */
-		    if (i > clue->rcov[b] &&
-		        (!multicolor || !bit_bg(bit)))
-			    clue->rcov[b]= i;
-		    return clue->rbadb != MAXLINE;
-		}
-		clue->rbadb= 2*b + 1;
-		if (D)
-		    printf("L:  OLD RIGHT SOLN BAD - BLOCK %d INT %d\n",
-			b, clue->rbadb);
-	    }
-	    else
-	    {
-	    	/* changed cell is in gap left of block b */
-		if (bit_bg(bit))
-		    return clue->rbadb != MAXLINE;
-		clue->rbadb= 2*b;
-		if (D)
-		    printf("L:  OLD RIGHT SOLN BAD - GAP %d INT %d\n",
-			b, clue->rbadb);
-	    }
-	    clue->rbadi= i;
-	    return 1;
-	}
-    /* If we drop out of loop, then we invalidated a cell right of the
-     * rightmost block.  This should never really happen, as all those cells
-     * should have been painted with the background color long ago.  However,
-     * if it happens anyway, invalidate the whole line.
-     */
-    clue->rbadb= -1;
-    clue->rbadi= i;
-    if (D)
-	printf("L:  OLD RIGHT SOLN BAD BEFORE FIRST BLOCK\n");
-    return  1;
-}
-
-
-/* Update the solution and coverage arrays after undoing a cell.  We are
- * given the clue, the solution line, the index of the cell in the line, the
- * new value of the cell.
- */
-
-void left_undo(Puzzle *puz, Clue *clue, Cell **line, line_t i, bit_type *new)
-{
-    line_t b, e;
-
-    /* If we are backtracking past the point where this solution was first
-     * found, then discard it entirely.  */
-    if (puz->nhist <= clue->lstamp)
-    {
-    	clue->lbadb= -1;
-	if (DU)
-	    printf(" -- LEFT INVALIDATED");
-	return;
-    }
-
-    /* If there is no saved solution, don't check it */
-    if (clue->lbadb == -1) return;
-
-    /* It is possible that the line is marked bad at this point, if a failure
-     * in some other line caused us to start backtracking before this line
-     * could be rechecked.  But back at the last guess point it must have been
-     * OK, because there were no jobs on the list.  So since we are going to
-     * backtrack until the last guess point, it's safe to mark the line OK.
-     */
-    clue->lbadb= MAXLINE;
-    clue->lbadi= MAXLINE;
-
-    /* If this cell is the leftmost can't-be-white cell in some block and
-     * we are undoing it so it can-be-white, then lcov for that block must
-     * change.  Note that this is the only case where lcov needs to be
-     * undated.  If the cell is in a gap it doesn't effect lcov.  If it is
-     * in block b and left of lcov[b], then it already can-be-white and
-     * undoing won't change that. If it is block b and right of lcov[b], then
-     * lcov[b] will remain the leftmost can't-be-white cell in the block
-     * whatever we do to this cell.
-     */
-
-    /* Look for an interval with lcov[b] == our cell */
-    for (b= 0;  b < clue->n; b++)
-    	if (i == clue->lcov[b])
-	{
-	    /* We were the leftmost can't-be-white cell of block b */
-
-	    /* If we still can't be white, no change is needed */
-	    if (multicolor && !bit_bg(new)) return;
-
-	    /* Scan right from the current position through the block,
-	     * looking for another can't-be-white cell */
-	    e= clue->lpos[b] + clue->length[b];
-	    for (i++; i < e; i++)
-	    	if (!may_be_bg(line[i]))
-		{
-		    /* Found one */
-		    clue->lcov[b]= i;
-		    if (DU)
-			printf(" -- LCOV[%d] SET TO %d",b,i);
-		    return;
-		}
-	    /* Found none */
-	    clue->lcov[b]= -1;
-	    if (DU)
-		printf(" -- LCOV[%d] SET TO -1",b);
-	}
-
-    /* Cell is not the lcov of any block */
-    return;
-}
-
-void right_undo(Puzzle *puz, Clue *clue, Cell **line, line_t i, bit_type *new)
-{
-    line_t b, e;
-
-    /* If we are backtracking past the point where this solution was first
-     * found, then discard it entirely.  */
-    if (puz->nhist <= clue->rstamp)
-    {
-    	clue->rbadb= -1;
-	if (DU)
-	    printf(" -- RIGHT INVALIDATED");
-	return;
-    }
-
-    /* If there is no saved solution, don't check it */
-    if (clue->rbadb == -1) return;
-
-    /* It is possible that the line is marked bad at this point, if a failure
-     * in some other line caused us to start backtracking before this line
-     * could be rechecked.  But back at the last guess point it must have been
-     * OK, because there were no jobs on the list.  So since we are going to
-     * backtrack until the last guess point, it's safe to mark the line OK.
-     */
-    clue->rbadb= MAXLINE;
-    clue->rbadi= -1;
-
-    /* If this cell is the rightmost can't-be-white cell in some block and
-     * we are undoing it so it can-be-white, then rcov for that block must
-     * change.  Note that this is the only case where rcov needs to be
-     * undated.  If the cell is in a gap it doesn't effect rcov.  If it is
-     * in block b and right of rcov[b], then it already can-be-white and
-     * undoing won't change that. If it is block b and left of rcov[b], then
-     * rcov[b] will remain the rightmost can't-be-white cell in the block
-     * whatever we do to this cell.
-     */
-
-    /* Look for an interval with rcov[b] == our cell */
-    for (b= 0;  b < clue->n; b++)
-    	if (i == clue->rcov[b])
-	{
-	    /* We were the rightmost can't-be-white cell of block b */
-
-	    /* If we still can't be white, no change is needed */
-	    if (multicolor && !bit_bg(new)) return;
-
-	    /* Scan left from the current position through the block,
-	     * looking for another can't-be-white cell */
-	    e= clue->rpos[b];
-	    for (i--; i >= e; i--)
-	    	if (!may_be_bg(line[i]))
-		{
-		    /* Found one */
-		    clue->rcov[b]= i;
-		    if (DU)
-			printf(" -- RCOV[%d] SET TO %d",b,i);
-		    return;
-		}
-	    /* Found none */
-	    clue->rcov[b]= -1;
-	    if (DU)
-		printf(" -- RCOV[%d] SET TO -1",b);
-	}
-
-    /* Cell is not the rcov of any block */
-    return;
-}
-
-
 /* Finite State Machine States for the line solver */
 
 #define NEWBLOCK	0
 #define PLACEBLOCK	1
 #define FINALSPACE	2
-#define CHECKREST	3
-#define BACKTRACK	4
-#define ADVANCEBLOCK	5
-#define HALT		6
+#define CHECKPOS	3
+#define CHECKREST	4
+#define BACKTRACK	5
+#define ADVANCEBLOCK	6
+#define HALT		7
 
 /* Find leftmost solution for line i of clueset k
  *
@@ -406,7 +131,7 @@ void right_undo(Puzzle *puz, Clue *clue, Cell **line, line_t i, bit_type *new)
  * trick to make old-fashioned spaghetti code look like it makes sense.
  */
 
-line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
+line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i)
 {
     line_t b,j;
     color_t currcolor, nextcolor;
@@ -415,95 +140,16 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
     Cell **cell= sol->line[k][i];
     line_t *pos, *cov;
 
-    /* The pos array contains current position of each block, or more
-     * specifically the first cell of each block.  It's terminated by a -1.
-     */
-    if (savepos)
-	pos= clue->lpos;
-    else
-    {
-    	pos= lpos;
-	pos[clue->n]= -1;
-    }
+    /* The position array gives the current position of each block.  It is
+     * terminated by a -1.  The cov array contains the index of the left-most
+     * cell covered by the block which CANNOT be white.  It is -1 if there is
+     * no such cell.  */
+    pos= lpos;
+    pos[clue->n]= -1;
 
-    /* The cov array contains the index of the left-most cell covered by the
-     * block which CANNOT be white.  It is -1 if there is no such cell.
-     */
-    cov= savepos ? clue->lcov : gcov;
-
-    /* If we have a saved solution to start with, initialize off that.
-     * Otherwise, just start from scratch.
-     */
-    
-    if (!savepos || clue->lbadb == -1)
-    {
-	/* no usable saved solution.  Start fresh. */
-	b= 0;
-	state= NEWBLOCK;
-	if (D)
-	    printf("L: NO OLD -- FRESH START\n");
-    }
-    else if (clue->lbadb == MAXLINE)
-    {
-    	/* Can reuse old solution completely. Note that we don't update the
-	 * time stamp in this case.
-	 */
-	if (D)
-	{
-	    printf("L: OLD STILL VALID -- REUSING: ");
-	    dump_pos(stdout, pos, clue->length);
-	}
-	return pos;
-    }
-    else if (clue->lbadb % 2 == 0)
-    {
-	/* A cell in a gap was set to a non-background color.  Point b to
-	 * the preceding block, and start backtracking.  */
-	b= clue->lbadb/2;
-	state= BACKTRACK;
-	if (D)
-	{
-	    printf("L: OLD INVALID AT %d INT %d (GAP) "
-		"-- BACKTRACK FROM BLOCK %d\n   ", clue->lbadi,clue->lbadb,b);
-	    dump_pos(stdout, pos, clue->length);
-        }
-    }
-    else
-    {
-    	/* A cell in a block has been set to different color. */
-	b= clue->lbadb/2;
-	if (D)
-	    printf("L: OLD INVALID AT %d INT %d (BLOCK) -- ",
-		clue->lbadi,clue->lbadb);
-
-	if ((cov[b] < 0 || cov[b] > clue->lbadi) &&
-		(!multicolor || may_be_bg(cell[clue->lbadi])))
-	{
-	    /* Block covers nothing or covered cells are right of changed cell,
-	     * and changed cell can be background color, so we just skip past
-	     * it */
-	    pos[b]= clue->lbadi + 1;
-	    if (cell[pos[b]] == NULL)
-	    {
-		clue->lbadb= -1;
-		return NULL;
-	    }
-	    currcolor= clue->color[b];
-	    state= PLACEBLOCK;
-	    if (D)
-		printf("PLACEBLOCK %d AT %d\n   ",b,pos[b]);
-	}
-	else
-	{
-	    /* Block covers something, so we can't skip it ahead */
-	    state= BACKTRACK;
-	    if (D)
-		printf("BACKTRACK FROM BLOCK %d\n   ",b);
-	}
-	if (D)
-	    dump_pos(stdout, pos, clue->length);
-    }
-
+    /* Initialize finite state machine */
+    b= 0;
+    state= NEWBLOCK;
     backtracking= 0;
 
     /* Finite State Machine */
@@ -534,17 +180,23 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 		printf("L: PLACING BLOCK %d COLOR %d LENGTH %d\n",
 	    	b,currcolor,clue->length[b]);
 
-	    /* Earliest possible position of block b, after previous blocks,
-	     * leaving a space between the blocks if they are the same color.
-	     */
-
-	    pos[b]= (b == 0) ? 0 :
-			j + ((clue->color[b-1] == currcolor) ? 1 : 0);
-
-	    if (cell[pos[b]] == NULL)
+	    if (b == 0)
 	    {
-		clue->lbadb= -1;
-		return NULL;
+		/* Get earliest possible position from pmin array */
+		pos[b]= clue->pmin[0];:
+	    }
+	    else
+	    {
+		/* Earliest possible position of block b is after previous
+		 * block, leaving a space between the blocks if they are
+		 * the same color. */
+		pos[b]= j + ((clue->color[b-1] == currcolor) ? 1 : 0);
+
+		/* Make sure this is consistent with pbit */
+		if (pos[b] < clue->pmin[b])
+		    pos[b]= clue->pmin[b];
+		else if (pos[b] > clue->pmax[b])
+		    return NULL;
 	    }
 
 	    if (D)
@@ -556,8 +208,8 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 
 	    /* Precondition: Blocks 0 through b-1 have been legally placed
 	     *    or b = 0.  pos[b] points points to a position less than or
-	     *    equal to the position of block b.  currcolor is the color
-	     *    of the current block b.
+	     *    equal to the leftmost position of block b.  currcolor is
+	     *    the color of the current block b.
 	     * Action:  Advance pos[b] until it points to a position where
 	     *    the next length[b] cells can all accomodate the block's
 	     *    color.  Also compute cov[b], the index of the leftmost
@@ -565,10 +217,12 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 	     */
 
 	    /* First find a place for the first cell of the block, skipping
-	     * over white cells until we find one.
+	     * over positions banned by pbit and over wrong colored cells
+	     * until we find an acceptable starting position.
 	     */
 
-	    while (!may_be(cell[pos[b]], currcolor))
+	    while (!may_be(cell[pos[b]], currcolor) ||
+		   !may_place(clue,b,pos[b]));
 	    {
 		if (D)
 		    printf("L: POS %d BLOCKED\n",pos[b]);
@@ -591,17 +245,18 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 		if (D)
 		    printf("L: SHIFT BLOCK TO %d\n",pos[b]+1);
 
-		if (cell[++pos[b]] == NULL)
+		if (++pos[b] > clue->pmax[b])
 		{
 		    if (D)
 			printf("L: END OF THE LINE\n");
-		    clue->lbadb= -1;
 		    return NULL;	/* Hit end of line */
 		}
 	    }
 
-	    /* First cell has found a home, can we place the rest of the block?
-	     * While we are at at, compute cov[b].
+	    /* First cell has found a home. Can we place the rest of the block?
+	     * While we are at at, compute cov[b].  pbit was initialized so
+	     * that it didn't allow blocks to run off the end of the line, so
+	     * we don't need to worry about that case here.
 	     */
 	    if (D)
 		printf("L: FIRST CELL OF %d PLACED AT %d\n",b,pos[b]);
@@ -611,13 +266,6 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 	    {
 		if (D)
 		    printf("L: CHECKING CELL AT %d\n",j);
-		if (cell[j] == NULL)
-		{
-		    if (D)
-			printf("L: END OF THE LINE\n");
-		    clue->lbadb= -1;
-		    return NULL;	/* Block runs off end of line */
-		}
 
 		if (!may_be(cell[j], currcolor))
 		{
@@ -658,10 +306,11 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 
 	    /* Precondition: Blocks 0 through b-1 have been legally placed
 	     *    or b = 0.  pos[b] points points to a position so that all
-	     *    cells of the block can accomodate the block's color.  j
-	     *    is the index of the first cell after the block.  currcolor
-	     *    is the color of the current block b.
-	     * Action:  Check if the first cell of the block is a legal
+	     *    cells of the block can accomodate the block's color and which
+	     *    is has not been banned by pbit.  j is the index of the first
+	     *    cell after the block.  currcolor is the color of the current
+	     *    block b.
+	     * Action:  Check if the first cell after the block is a legal
 	     *    color.  If it is the same color as the block, try advancing
 	     *    the block to cover that too.  If backtracking is true,
 	     *    also ensure the block covers something, and advance it until
@@ -674,9 +323,15 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 	    if (cell[j] != NULL)
 	    {
 		/* OK, we've found a place the block fits, now we check that
-		 * first cell AFTER the block is able to be some color different
-		 * than the block's color.
+		 * first cell AFTER the block is able to be some color
+		 * different than the block's color.
 		 */
+
+		/* The next cell can always be background, but in multicolor
+		 * it can also be the color of the next block, if the next
+		 * block is a different color than this block.  So nextcolor
+		 * is that color, if there is such a color.  Otherwise it is
+		 * background color */
 		nextcolor= (multicolor &&
 			(b < clue->n - 1) &&
 			(currcolor != clue->color[b+1])) ?
@@ -688,26 +343,35 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 		while (cell[j] != NULL && !may_be_bg(cell[j]) &&
 			(nextcolor == BGCOLOR || !may_be(cell[j],nextcolor)))
 		{
-		    /* Next cell is wrong color, so try advancing the block one
-		     * cell.  But we need to make sure that we don't uncover any
-		     * cells, and we need to make sure that the cell at the end
-		     * is one we can cover
-		     */
-		    if (D)
-			printf("L: NO FINAL SPACE\n");
-		    if (cov[b] == pos[b] ||
-			(multicolor && !may_be(cell[j],currcolor)) )
-		    {
-			/* can't advance.  BACKTRACK */
-			state= BACKTRACK; goto next;
-		    }
-		    /* All's OK - go ahead and advance the block */
-		    pos[b]++;
-		    if (cov[b] == -1 && !may_be_bg(cell[j]))
-			cov[b]= j;
-		    j++;
-		    if (D)
-			printf("L: ADVANCING BLOCK (cov=%d)\n",cov[b]);
+		    do {
+			/* Next cell is wrong color or we just advanced to a
+			 * position banned by pbit. So try advancing the
+			 * block one cell.  But we need to make sure that
+			 * we don't uncover any cells, and we need to make
+			 * sure that the cell at the end is one we can cover.
+			 */
+			if (D)
+			    printf("L: NO FINAL SPACE\n");
+			if (cov[b] == pos[b] ||
+			    (multicolor && !may_be(cell[j],currcolor)))
+			{
+			    /* can't advance.  BACKTRACK */
+			    state= BACKTRACK; goto next;
+			}
+			/* If this cell is already as far right as it may
+			 * be then we are stuck */
+			if (pos[b] == pmax[b])
+			{
+			    return NULL;
+			}
+			/* All's OK - go ahead and advance the block */
+			pos[b]++;
+			if (cov[b] == -1 && !may_be_bg(cell[j]))
+			    cov[b]= j;
+			j++;
+			if (D)
+			    printf("L: ADVANCING BLOCK (cov=%d)\n",cov[b]);
+		    } while (!may_place(cell,b,pos[b]));
 		}
 	    }
 
@@ -727,7 +391,6 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 	    if (cell[j] == NULL && b < clue->n - 1)
 	    {
 		/* Ran out of space, but still have blocks left */
-		clue->lbadb= -1;
 		return NULL;
 	    }
 
@@ -735,6 +398,43 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 	    b++;
 	    backtracking= 0;
 	    state= NEWBLOCK; goto next;
+
+	case CHECKPOS:
+
+	    /* Precondition: Blocks 0 through b-1 have been legally placed
+	     *    or b = 0.  pos[b] points points to a position so that all
+	     *    cells of the block can accomodate the block's color, but
+	     *    which might have been banned by pbit.  j is the index of the
+	     *    first cell after the block.  currcolor is the color of the
+	     *    current block b. (This is just like FINALSPACE except we
+	     *    aren't assured that pbit allows the current position.)
+	     * Action:  If the current position is banned by pbit, try advancing
+	     *    without uncovering anything until we reach an acceptable
+	     *    position. If it works, check FINALSPACE.  If it fails,
+	     *    BACTRACK.
+	     */
+
+	    if (D)
+		printf("L: CHECKING POSITION\n");
+
+	    while (!may_place(cell,b,pos[b]))
+	    {
+	    	/* Current position is fine except for being banned by pbit 
+	    	 * Can we advance? */
+	    	
+	    	if (pos[b] == pmax[b] ||   /* Cell already as far as it goes */
+		    pos[b] == cov[b] ||	   /* First cell covers something */
+		    !may_be(cell[j],currcolor))/*Next cell cannot be our color */
+		{
+		    /* can't advance.  BACKTRACK */
+		    state= BACKTRACK; goto next;
+		}
+		/* Can advance.  Do it */
+		pos[b]++;
+		j++;
+	    }
+	    state= FINALSPACE; goto next;
+
 
 	case CHECKREST:
 
@@ -784,7 +484,6 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 	    {
 		if (D)
 		    printf("L: NO BLOCKS LEFT TO BACKTRACK TO - FAIL\n");
-		clue->lbadb= -1;
 		return NULL;
 	    }
 
@@ -839,6 +538,12 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 		pos[b]++;
 		if (D)
 		    printf("- ADVANCING BLOCK %d TO %d\n",b,pos[b]);
+		if (pos[b] > clue->pmax[b])
+		{
+		    if (D)
+			printf("L: END OF LINE\n");
+		    return NULL;
+		}
 
 		/* Check if we have covered anything.  If we have, we can
 		 * stop advancing
@@ -849,14 +554,8 @@ line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos)
 		    if (D)
 			printf("L: COVERED NEW TARGET AT %d - BLOCK AT %d\n",
 			    j-1, pos[b]);
-		    state= FINALSPACE; goto next;
-		}
-		if (cell[j] == NULL)
-		{
-		    if (D)
-			printf("L: END OF LINE\n");
-		    clue->lbadb= -1;
-		    return NULL;
+
+		    state= CHECKPOS; goto next;
 		}
 	    }
 
