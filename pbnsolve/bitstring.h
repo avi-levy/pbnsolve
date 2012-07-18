@@ -1,9 +1,11 @@
 /* Some bitstring manipulation macros.  These were written long ago by
  * Paul A. Vixie and were posted to mod.sources.  I'm assuming they are
  * open source.
+ * 
+ * This have been much modified, expanded and mangled by Jan Wolter.
  *
  * We have added the fbit_* functions which take advantage of the fact that
- * all bitstrings in pbnsolve are the same size and expect to find those
+ * most bitstrings in pbnsolve are the same size and expect to find those
  * sizes in fbit_n (number of bits) and fbit_size (number of ints to store
  * those bits).  I tried caching _bit_intn(N) and _bit_mask(N) in arrays,
  * but that actually made things slower.
@@ -93,7 +95,6 @@ extern int fbit_size;
 	 */
 #define	_bit_mask(N) \
 	(((bit_type)1) << ((N) % _bit_intsiz))
-
 
         /*
 	 * Return a mask with zeros followed by N ones
@@ -194,6 +195,31 @@ extern int fbit_size;
 			Name[_bit_i]=_bit_0s; \
 	}
 #endif
+
+	/*
+	 * Clear all bits in 0...i-1, but leave bits N and later alone
+	 */
+
+#define bit_clearbefore(Name,i) \
+    	{	register _bit_i= bit_size(i)-1; \
+	    	Name[_bit_i]&= ~zeroone((i)%_bit_intsiz); \
+	    	for (_bit_i--; _bit_i >= 0; _bit_i--) \
+	    		Name[_bit_i]=_bit_0s; \
+	}
+
+	/*
+	 * Leave bits 0...i unchanged, but clear all later bits in a size
+	 * N bit string.
+	 */
+
+#define bit_clearafter(Name,i,N) \
+    	{	register _bit_n= bit_size(N); \
+    	 	register _bit_i= bit_size(i)-1; \
+	    	Name[_bit_i]&= zeroone(((i)+1)%_bit_intsiz); \
+	    	for (_bit_i++; _bit_i < _bit_n; _bit_i++) \
+	    		Name[_bit_i]=_bit_0s; \
+	}
+
 
 	/*
 	 * set bit N of string Name to one, and all others to zero
