@@ -754,7 +754,7 @@ usage:
 int hintsnapcnt= 0;
 void hintsnapshot(Puzzle *puz, Solution *sol)
 {
-    if (hintlogn > 0 && ++hintsnapcnt > hintlogn)
+    if (hintlogn > 0 && ++hintsnapcnt >= hintlogn)
     {
 	print_snapshot(stdout,puz,sol,puz->ncolor > 2);
 	hintsnapcnt= 0;
