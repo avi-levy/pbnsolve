@@ -42,7 +42,8 @@ extern bit_type *oldval;
  * avoid redundant checks in the future. i=row, j=column
  */
 
-void mark_soln(Puzzle *puz, byte *p, line_t *soln, line_t i, line_t j, dir_t d)
+void mark_soln(Puzzle *puz, byte *p, line_t *pos, line_t *bcl,
+	line_t i, line_t j, dir_t d)
 {
     /* d=0=D_ROW i=row index j=col index  KEEP i fixed, move j */
     line_t jc= (d == D_ROW) ? i : j;
@@ -61,11 +62,11 @@ void mark_soln(Puzzle *puz, byte *p, line_t *soln, line_t i, line_t j, dir_t d)
     for (ic= 0; ic < clue->n; ic++)
     {
 	/* Mark white space before the block */
-	while (ir < soln[ic])
+	while (ir < pos[ic])
 	    PAD(p,ir++,0)= 1;
 
 	/* Mark colored cells in the block */
-	while (ir < soln[ic] + clue->length[ic])
+	while (ir < pos[ic] + bcl[ic])
 	    PAD(p,ir++,clue->color[ic])= 1;
     }
 
@@ -98,7 +99,7 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
     line_t i, j;
     color_t c, realn;
     dir_t k;
-    line_t *soln;
+    line_t *pos, *bcl;
     int hits= 0, setcell, snap= 0;
     Cell *cell;
     Hist *h;
@@ -165,15 +166,14 @@ int try_everything(Puzzle *puz, Solution *sol, int check)
 			dump_line(stdout,puz,sol,k,cell->line[k]);
 		    }
 
-		    soln= left_solve(puz,sol,k,cell->line[k], 0);
-		    if (soln)
+		    if (!left_solve(puz,sol,k,cell->line[k], 0, &pos,&bcl))
 		    {
 		    	/* It worked.  We learned nothing about our cell,
 			 * but the solution we got back includes possible
 			 * colors for some cells we still need to check.
 			 * Mark them in the scratch pad.
 			 */
-			mark_soln(puz,pad,soln,i,j,k);
+			mark_soln(puz,pad,pos,bcl,i,j,k);
 		    }
 		    else
 		    {

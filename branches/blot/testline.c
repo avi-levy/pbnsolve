@@ -13,15 +13,38 @@
  * limitations under the License.
  */
 
+/* A test driver for the linesolver that was used in the early stages of
+ * development. You give it a XML puzzle file, possible with a saved partial
+ * solution, select a row or column, and it will run the left or right solver
+ * on it, with debugging turned on.
+ *
+ * For example, the following would run the left-solver on row 7 of the given
+ * puzzle.
+ *
+ *     testline puzzle.xml R 7 L
+ *
+ * We haven't used this for years.  It might be broken.
+ */
+
 char *version= "1.0";
 
 #include "pbnsolve.h"
+
+#undef VL
+#define VL 1
+
 #include <time.h>
 
 int verb[NVERB];
 int http= 0;
 int mayprobe= 1, mergeprobe= 1;
 long nlines, probes, guesses, backtracks, merges;
+int cachelines= 0;
+int hintlog= 0, hintlogn= -1;
+int probing= 0;
+bit_type *probepad= NULL;
+int maylinesolve= 1;
+int count_colors= 0;
 
 
 int main(int argc, char **argv)
@@ -30,16 +53,16 @@ int main(int argc, char **argv)
     Puzzle *puz;
     SolutionList *sl;
     Solution *sol= NULL;
-    int i,k,left;
+    line_t i,k;
+    int left,rc;
     int dump= 0;
-    int *s;
+    line_t *pos, *bcl;
 
     if (argc != 5)
     {
     	printf("usage: %s <file> [R|C] <n> [L|R]\n", argv[0]);
 	exit(1);
     }
-    VL= 1;
 
     filename= argv[1];
     k= ((argv[2][0] == 'r' || argv[2][0] == 'R') ? 0 : 1);
@@ -79,21 +102,21 @@ int main(int argc, char **argv)
     if (left)
     {
 	printf("LEFT SOLVING:\n");
-	s= left_solve(puz, sol, k, i);
+	rc= left_solve(puz, sol, k, i, 0, &pos, &bcl);
     }
     else
     {
 	printf("RIGHT SOLVING:\n");
-	s= right_solve(puz, sol, k, i);
+	rc= right_solve(puz, sol, k, i, 0, &pos, &bcl);
     }
 
-    if (s == NULL)
+    if (rc)
     	printf("CONTRADICTION\n");
     else
     {
 	printf("SOLUTION:\n");
-	    for (i= 0; s[i] >= 0; i++)
-	            printf("Block %d at %d\n",i, s[i]);
+	    for (i= 0; pos[i] >= 0; i++)
+	            printf("Block %d length %d at %d\n",i, bcl[i], pos[i]);
     }
 
     exit(0);
@@ -114,3 +137,7 @@ void fail(const char *fmt, ...)
     va_end(ap);
     exit(1);
 }
+
+void solved_a_cell(Puzzle *puz, Cell *cell, int way) {}
+
+void hintsnapshot(Puzzle *puz, Solution *sol) {}

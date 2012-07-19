@@ -123,7 +123,8 @@ typedef struct {
     float score;	/* A heuristic score for this line */
     line_t *colorcnt;	/* Counts of each color in this line */
     line_t *lpos,*rpos;	/* Last result from left_solve() and right_solve() */
-    line_t *lcov,*rcov;	/* Coverage arrays that go with lpos, and rpos */
+    line_t *lbcl,*rbcl;	/* For blotted clues, their lengths in lpos and rpos */
+    line_t *lcov,*rcov;	/* Coverage arrays that go with lpos and rpos */
     line_t lbadb,rbadb;	/* Bad interval index in lpos,rpos. LINEMAX if none */
     line_t lbadi,rbadi;	/* Cell index spoiling lpos,rcov.  LINEMAX if none  */
     int lstamp,rstamp;	/* nhist value at time that lpos,rpos were computed */
@@ -239,6 +240,10 @@ typedef struct {
     char *found;	/* A stringified solution we have found, if any */
     color_t *goal;	/* A goal image used by pick_color_right() */
 } Puzzle;
+
+/* Standard return codes */
+#define FAIL 1
+#define SUCCESS 0
 
 /* Various file formats that we can read */
 
@@ -394,8 +399,10 @@ int left_check(Clue *clue, line_t i, bit_type *bit);
 int right_check(Clue *clue, line_t i, bit_type *bit);
 void left_undo(Puzzle *puz, Clue *clue, Cell **line, line_t i, bit_type *new);
 void right_undo(Puzzle *puz, Clue *clue, Cell **line, line_t i, bit_type *new);
-line_t *left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos);
-line_t *right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos);
+int left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
+	        line_t **ppos, line_t **pbcl);
+int right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
+	        line_t **ppos, line_t **pbcl);
 bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i);
 int apply_lro(Puzzle *puz, Solution *sol, dir_t k, line_t i, int depth);
 
