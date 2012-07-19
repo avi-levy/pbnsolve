@@ -42,7 +42,7 @@ bit_type *oldval;
 void init_line(Puzzle *puz)
 {
     line_t maxcluelen= 0, maxdimension= 0;
-    line_t i;
+    line_t i,j;
     dir_t k;
 
     /* Set a flag if the puzzle is multicolored.  If not, we can skip some
@@ -70,6 +70,19 @@ void init_line(Puzzle *puz)
 	    puz->clue[k][i].rpos=
 		(line_t *)malloc((puz->clue[k][i].n + 1) * sizeof(line_t));
 	    puz->clue[k][i].rpos[puz->clue[k][i].n]= -1;
+
+	    /* If there are any blots in the clue, allocate saved blocklength
+	     * arrays for the left and right solver */
+	    puz->clue[k][i].lbcl= puz->clue[k][i].rbcl= NULL;
+	    for (j= 0; j < puz->clue[k][i].n; j++)
+		if (puz->clue[k][i].length[j] == 0)
+		{
+		    puz->clue[k][i].lbcl=
+			(line_t *)malloc((puz->clue[k][i].n) * sizeof(line_t));
+		    puz->clue[k][i].rbcl=
+			(line_t *)malloc((puz->clue[k][i].n) * sizeof(line_t));
+		    break;
+		}
 
 	    /* Allocate a left and right coverage array for each clue */
 	    puz->clue[k][i].lcov=
@@ -428,17 +441,9 @@ int left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
      * The bcl array is used only if we have blotted clues whose block
      * length is variable. It gives the length of each blotted clue.
      */
-    if (savepos)
-    {
-	pos= clue->lpos;
-	bcl= clue->lbcl;
-    }
-    else
-    {
-    	pos= lpos;
-	pos[clue->n]= -1;
-    	bcl= lbcl;
-    }
+    pos= (savepos) ? clue->lpos : lpos;
+    pos[clue->n]= -1;
+    bcl= savepos ? (clue->lbcl != NULL ? clue->lbcl : clue->length) : lbcl;
     *ppos= pos;
     *pbcl= bcl;
 
@@ -548,7 +553,7 @@ int left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
 	    currcolor= clue->color[b];	/* Color of current block */
 	    if (D)
 		printf("L: PLACING BLOCK %d COLOR %d LENGTH %d\n",
-	    	b,currcolor,clue->length[b]);
+		    b,currcolor,clue->length[b]==0?1:clue->length[b]);
 
 	    /* Earliest possible position of block b, after previous blocks,
 	     * leaving a space between the blocks if they are the same color.
@@ -731,7 +736,7 @@ int left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
 			/* All's OK - go ahead and stretch the block */
 			bcl[b]++;
 
-			if (D) printf("L: STRETCHING BLOCK");
+			if (D) printf("L: STRETCHING BLOCK TO %d",bcl[b]);
 		    }
 		    else
 		    {
@@ -753,7 +758,7 @@ int left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
 			/* All's OK - go ahead and advance the block */
 			pos[b]++;
 
-			if (D) printf("L: ADVANCING BLOCK");
+			if (D) printf("L: ADVANCING BLOCK TO %d",pos[b]);
 		    }
 
 		    /* Succeeded in covering the cell either by stretching or
@@ -817,7 +822,7 @@ int left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
 			 */
 			if (D)
 			    printf("NEEDS COVERAGE\n");
-			j= pos[b] + clue->length[b];
+			j= pos[b] + bcl[b];
 			state= ADVANCEBLOCK; goto next;
 		    }
 		    else if (D)
@@ -915,8 +920,8 @@ int left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
 		{
 		    if (cov[b] == -1) cov[b]= j-1;
 		    if (D)
-			printf("L: COVERED NEW TARGET AT %d - BLOCK AT %d\n",
-			    j-1, pos[b]);
+		    	printf("L: COVERED NEW TARGET AT %d - BLOCK AT %d"
+				" LENGTH %d\n", j-1, pos[b], bcl[b]);
 		    state= FINALSPACE; goto next;
 		}
 		if (cell[j] == NULL)
@@ -987,17 +992,9 @@ int right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
      * The bcl array is used only if we have blotted clues whose block
      * length is variable. It gives the length of each blotted clue.
      */
-    if (savepos)
-    {
-    	pos= clue->rpos;
-	bcl= clue->rbcl;
-    }
-    else
-    {
-    	pos= rpos;
-	pos[clue->n]= -1;
-	bcl= rbcl;
-    }
+    pos= (savepos) ? clue->rpos : rpos;
+    pos[clue->n]= -1;
+    bcl= savepos ? (clue->rbcl != NULL ? clue->rbcl : clue->length) : rbcl;
     *ppos= pos;
     *pbcl= bcl;
 
@@ -1102,7 +1099,7 @@ int right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
 	    currcolor= clue->color[b];	/* Color of current block */
 	    if (D)
 		printf("L: PLACING BLOCK %d COLOR %d LENGTH %d\n",
-	    	b,currcolor,clue->length[b]);
+		    b,currcolor,clue->length[b]==0?1:clue->length[b]);
 
 	    /* Earliest possible position of block b, after previous blocks,
 	     * leaving a space between the blocks if they are the same color.
@@ -1111,7 +1108,7 @@ int right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
 	    pos[b]= (b == maxblock) ? ncell - 1 :
 			j - ((clue->color[b+1] == currcolor) ? 1 : 0);
 
-	    if (pos[b] - clue->length[b] + 1 < 0)
+	    if (pos[b] - (clue->length[b]==0?1:clue->length[b]) + 1 < 0)
 	    {
 		/* No room for another block - fail */
 		clue->rbadb= -1;
@@ -1283,7 +1280,7 @@ int right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
 			/* All's OK - go ahead and stretch the block */
 			bcl[b]++;
 
-			if (D) printf("L: STRETCHING BLOCK");
+			if (D) printf("L: STRETCHING BLOCK TO %d",bcl[b]);
 		    }
 		    else
 		    {
@@ -1305,7 +1302,7 @@ int right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
 			/* All's OK - go ahead and advance the block */
 			pos[b]--;
 
-			if (D) printf("L: ADVANCING BLOCK");
+			if (D) printf("L: ADVANCING BLOCK TO %d",pos[b]);
 		    }
 
 		    /* Succeeded in covering the cell either by stretching or
@@ -1367,8 +1364,8 @@ int right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
 			 * a blotted lue, we will stretch it instead.)
 			 */
 			if (D)
-			    printf("NEEDS COVERAGE (cov=%d j=%d) ",cov[b],j);
-			j= pos[b] - clue->length[b];
+			    printf("NEEDS COVERAGE (cov=%d j=%d)\n",cov[b],j);
+			j= pos[b] - bcl[b];
 			state= ADVANCEBLOCK; goto next;
 		    }
 		    else if (D)
@@ -1466,8 +1463,8 @@ int right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
 		{
 		    if (cov[b] == -1) cov[b]= j+1;
 		    if (D)
-		    	printf("L: COVERED NEW TARGET AT %d - BLOCK AT %d\n",
-				j+1, pos[b]);
+		    	printf("L: COVERED NEW TARGET AT %d - BLOCK AT %d"
+				" LENGTH %d\n", j+1, pos[b], bcl[b]);
 		    state= FINALSPACE; goto next;
 		}
 		if (j < 0)
@@ -1547,7 +1544,7 @@ bit_type *lro_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i)
 
 	printf("L: LEFT  SOLUTION: ");
 	dump_pos(stdout, lpos, lbcl);
-	printf("L: RIGHT SOLUTION:\n");
+	printf("L: RIGHT SOLUTION: ");
 	dump_pos(stdout, rpos, rbcl);
     }
 
