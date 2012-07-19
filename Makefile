@@ -46,9 +46,10 @@ testgamma: testgamma.c gamma.o
 	cc -o testgamma $(CFLAGS) testgamma.c gamma.o -lm
 
 testline: testline.c line_lro.o read.o dump.o grid.o merge.o job.o read_xml.o \
-	puzz.o clue.o line_cache.o
+	puzz.o clue.o line_cache.o read_bw.o read_grid.o read_olsak.o
 	cc -o testline $(CFLAGS) testline.c line_lro.o read.o dump.o grid.o \
-	merge.o job.o read_xml.o puzz.o clue.o line_cache.o $(LIB)
+	merge.o job.o read_xml.o puzz.o clue.o line_cache.o read_bw.o \
+	read_grid.o read_olsak.o $(LIB)
 
 TARBALL= README CHANGELOG Makefile \
 	bitstring.h config.h pbnsolve.h read.h read_bw.c read_grid.c \

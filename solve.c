@@ -73,8 +73,8 @@ int line_solve(Puzzle *puz, Solution *sol, int contradicting)
 	if (contradicting && depth >= contradepth)
 	{
 	    /* At max depth we just check if the line is solvable */
-	    line_t *soln= left_solve(puz, sol, dir, i, 0);
-	    if (soln != NULL)
+	    line_t *pos, *bcl;
+	    if (!left_solve(puz, sol, dir, i, 0, &pos, &bcl))
 	    {
 		if ((VC&&VV) || WL(dir,i))
 		    printf("C: %s %d OK AT DEPTH %d\n",
@@ -89,7 +89,7 @@ int line_solve(Puzzle *puz, Solution *sol, int contradicting)
 		return 0;
 	    }
 	}
-	else if (!apply_lro(puz, sol, dir, i, depth + 1))
+	else if (apply_lro(puz, sol, dir, i, depth + 1))
 	{
 	    /* Found a contradiction */
 	    if (contradicting) {cont_dir= dir; cont_line= i;}
