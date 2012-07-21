@@ -880,7 +880,7 @@ int left_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
 		{
 		    if (D)
 			printf("L: ADVANCE HIT OBSTACLE ");
-		    if (cov[b] > 0 || (multicolor && !may_be_bg(cell[j])))
+		    if (cov[b] >= 0 || (multicolor && !may_be_bg(cell[j])))
 		    {
 			if (D)
 			    printf("- BACKTRACKING\n");
@@ -1423,7 +1423,7 @@ int right_solve(Puzzle *puz, Solution *sol, dir_t k, line_t i, int savepos,
 		{
 		    if (D)
 			printf("L: ADVANCE HIT OBSTACLE ");
-		    if (cov[b] > 0 || (multicolor && !may_be_bg(cell[j])))
+		    if (cov[b] >= 0 || (multicolor && !may_be_bg(cell[j])))
 		    {
 			if (D)
 			    printf("- BACKTRACKING\n");
