@@ -1,4 +1,5 @@
 version 1.10 -
+  - Added support for solving puzzles with blotted clue numbers.
   - Added support for reading CWD files.
   - Added -m flag to turn on printing of explanations.
   - Added some experimental search heuristics (-aG5 and -aG6) which draw on

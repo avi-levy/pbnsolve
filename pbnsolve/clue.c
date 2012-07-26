@@ -151,7 +151,7 @@ void clue_init(Puzzle *puz, Solution *sol)
 	    for (j= 0; j < clue->n; j++)
 	    {
 		if (j > 0 && clue->color[j-1] == clue->color[j]) spaces++;
-		fill+= clue->length[j];
+		fill+= (clue->length[j] == 0 ? 1 : clue->length[j]);
 	    }
 	    clue->slack= (clue->linelen - fill - spaces);
 	}
