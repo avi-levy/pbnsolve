@@ -83,13 +83,13 @@ Command line options:
 
         Which outputs are possible depends to some extent to the algorithms
 	selected with the -a flag.  "depth-2" occurs only if algorithm C
-	(Contradiction Check) is enabled.  "stalled occurs only if no
+	(Contradiction Check) is enabled.  "stalled" occurs only if no
         search algorithm is enabled (G, P or M).
 
 	Note that with the -u or -c flags, we will always get one of
 	'unique' or 'multiple' if we find any solution at all.  If the puzzle
 	can be solved by line and color logic alone, it will be flagged
-	logical, but since other solution techniques are possible, it should
+	"line", but since other solution techniques are possible, it should
 	not be assumed that other puzzles are not logically solvable in a
 	broader sense.
 
@@ -115,8 +115,8 @@ Command line options:
    -a<algflags>
 
         Use the listed algorithms.  Possible values are listed below.  The
-	order in which the options are given does not determine the order
-	in which they are tried.  Default is -aLHEGP.
+	order in which the options are given is immaterial and does not
+        determine the order in which they are tried.  Default is -aLHEGP.
 
 	   L - LRO Line Solving.  This is normally the first thing we try,
 	       examining rows and columns one at a time, comparing the leftmost
