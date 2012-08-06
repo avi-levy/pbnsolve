@@ -1,4 +1,4 @@
-version 1.10 -
+version 1.10 - Aug 5, 2012
   - Added support for solving puzzles with blotted clue numbers.
   - Added support for reading CWD files.
   - Added -m flag to turn on printing of explanations.
