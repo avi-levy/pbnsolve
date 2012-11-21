@@ -80,7 +80,7 @@ void probe_init(Puzzle *puz, Solution *sol)
 
 
 /* PROBE_CELL - Do a sequence of probes on a cell.  We normally do one probe
- * on each possible color for the cell.  <cell> points and the cell, and <i>
+ * on each possible color for the cell.  <cell> points to the cell, and <i>
  * and <j> are its coordinates.  <bestnleft> points to the nleft value of the
  * best guess found previously, and <bestc> points to the color of that guess.
  * The return code tells the result:

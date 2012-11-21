@@ -15,7 +15,7 @@
 
 /* EXHAUSTIVE STRATEGY - This is a desparate last gasp to try before giving up
  * on logical solving.  It tries every cell in every color possible to it
- * and checks if it's row nd column has become insolvable.  This is a
+ * and checks if it's row and column has become insolvable.  This is a
  * cover-up for the inadequacies of the left-right-overlap linesolving
  * algorithm and would be completely useless if that didn't miss some things.
  * As it is, it serves to ensure that we don't start guessing unless

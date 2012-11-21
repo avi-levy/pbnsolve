@@ -53,7 +53,6 @@ void guess_cell(Puzzle *puz, Solution *sol, Cell *cell, color_t c)
  * Returns 0 if a contradiction was found, one otherwise.
  */
 
-
 int line_solve(Puzzle *puz, Solution *sol, int contradicting)
 {
     extern dir_t cont_dir;
