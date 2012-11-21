@@ -125,11 +125,11 @@ static float (*line_score)(Puzzle *puz, Solution *sol, dir_t k, line_t i);
 
 /* ------------ CELL RATING FUNCTIONS ------------ */
 
-/* These functions generate a rating for a cell, a number that LOWER if
+/* These functions generate a rating for a cell, a number that is LOWER if
  * the cell is a better candidate for making a guess on.  Many of them
  * simply combine the line scores in different ways to get a cell score.
  *
- * We cah have two cell rating functions.  The second one is used to break
+ * We can have two cell rating functions.  The second one is used to break
  * ties.
  */
 
