@@ -62,6 +62,7 @@ void timeout(int sig)
 void setcpulimit(int secs)
 {
     struct rlimit rlim;
+    getrlimit(RLIMIT_CPU, &rlim);
     rlim.rlim_cur= secs;
     signal(SIGXCPU,timeout);
     setrlimit(RLIMIT_CPU, &rlim);
