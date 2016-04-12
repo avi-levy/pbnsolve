@@ -1,0 +1,3 @@
+`Pbnsolve` is program to solve paint-by-number puzzles, also known as nonograms, griddlers, or picross puzzles.  It was originally developed as a tool to be used by puzzle designers at the [webpbn](http://webpbn.com) site in checking newly created puzzles to ensure that they have a unique, logically discoverable solution.
+
+For more information, see the [pbnsolve homepage](http://webpbn.com/pbnsolve.html).
