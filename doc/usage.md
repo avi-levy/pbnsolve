@@ -3,8 +3,8 @@ Usage:
 
 Run syntax is:
 
-   pbnsolve -[bdhlopt] -[v<msgflags>] [-n<n>] [-s<n>] [-x<n>] [-d<depth>]
-    [-f<fmt>] [-a<algorithm>] [<datafile>]
+   `pbnsolve -[bdhlopt] -[v<msgflags>] [-n<n>] [-s<n>] [-x<n>] [-d<depth>]
+    [-f<fmt>] [-a<algorithm>] [<datafile>]`
 
 Input files may be in any of too many formats, described in the "Input Format"
 section below.  Pbnsolve will try to guess the file format based on the
@@ -14,55 +14,51 @@ the content of the file, though it doesn't do that terribly well.
 If the <datafile> path is omitted, then it reads from standard input.  In
 this case it will always expect "xml" format.
 
-Command line options:
-
-   -b 
+# Command line options:
+##   -b 
     Brief output.  Error messages are as usual, but normal output is just
-  one line containing one or more of the following words separated by
-  spaces:
-
-     unique        - puzzle had a unique solution.
-     multiple      - puzzle had multiple solutions.
-     line          - puzzle was solvable with line & color logic alone.
-     depth-2       - puzzle was solvable with two-level lookahead.
-     trivial       - puzzle was too easy, with little or no whitespace.
-     solvable      - found solution but none of the above was proven.
-     contradiction - puzzle had no solutions.
-     timeout       - cpu limit exceeded without a solution.
-     stalled       - only partially solved puzzle.
-
+    one line containing one or more of the following words separated by
+    spaces:
+   +  unique        - puzzle had a unique solution.
+   +  multiple      - puzzle had multiple solutions.
+   +  line          - puzzle was solvable with line & color logic alone.
+   +  depth-2       - puzzle was solvable with two-level lookahead.
+   +  trivial       - puzzle was too easy, with little or no whitespace.
+   +  solvable      - found solution but none of the above was proven.
+   +  contradiction - puzzle had no solutions.
+   +  timeout       - cpu limit exceeded without a solution.
+   +  stalled       - only partially solved puzzle.
   Without the -b flag you get wordier output along with ASCII images
   of one or two puzzle solutions.  You don't get triviality reported
   in that case, unless you give the -t flag and notice a difficulty
   rating of 100.
-
-        Which outputs are possible depends to some extent to the algorithms
+  
+  Which outputs are possible depends to some extent to the algorithms
   selected with the -a flag.  "depth-2" occurs only if algorithm C
   (Contradiction Check) is enabled.  "stalled" occurs only if no
-        search algorithm is enabled (G, P or M).
-
+  search algorithm is enabled (G, P or M).
+  
   Note that with the -u or -c flags, we will always get one of
   'unique' or 'multiple' if we find any solution at all.  If the puzzle
   can be solved by line and color logic alone, it will be flagged
   "line", but since other solution techniques are possible, it should
   not be assumed that other puzzles are not logically solvable in a
   broader sense.
-
-   -u
-    Check uniqueness.  If we had to do any searching (that is we actually
+##   -u
+  Check uniqueness.  If we had to do any searching (that is we actually
   needed to invoke algorithms G, P or M) then we don't necessarily know
   that the first solution we find is the only solution to the puzzle.
   If the -u flag is given, then in such cases we proceed to try to find
   a second solution.  If none are found, the puzzle is unique.
 
-   -c
+##   -c
         Input puzzle is expected to include a goal solution grid.  We try
   to see if we can find a solution different from that one, and if
   so, report it.  This is sometimes faster than -u, and in the case
   of multiple solutions always reports back a non-goal solution, but
   is otherwise similar.
 
-   -o  
+##   -o  
         Print a description of the puzzle data structure before starting
   to solve it.  This is mainly for debugging the puzzle reading
   code.  It's not pretty.
